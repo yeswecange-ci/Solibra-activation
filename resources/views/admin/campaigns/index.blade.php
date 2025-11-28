@@ -100,19 +100,15 @@
                                     {{ $campaign->created_at->format('d/m/Y H:i') }}
                                 </td>
                                 <td class="px-6 py-4 text-right text-sm font-medium space-x-2">
-                                    <a href="{{ route('admin.campaigns.show', $campaign) }}" class="text-blue-600 hover:text-blue-900">Voir</a>
+                                    <x-action-button type="view" :href="route('admin.campaigns.show', $campaign)" />
 
                                     @if($campaign->status === 'draft')
-                                        <a href="{{ route('admin.campaigns.edit', $campaign) }}" class="text-indigo-600 hover:text-indigo-900">Modifier</a>
-                                        <a href="{{ route('admin.campaigns.confirm-send', $campaign) }}" class="text-green-600 hover:text-green-900">Envoyer</a>
+                                        <x-action-button type="edit" :href="route('admin.campaigns.edit', $campaign)" />
+                                        <x-action-button type="send" :href="route('admin.campaigns.confirm-send', $campaign)" />
                                     @endif
 
                                     @if(in_array($campaign->status, ['draft', 'sent']))
-                                        <form action="{{ route('admin.campaigns.destroy', $campaign) }}" method="POST" class="inline-block" onsubmit="return confirm('Supprimer cette campagne ?')">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="text-red-600 hover:text-red-900">Supprimer</button>
-                                        </form>
+                                        <x-action-button type="delete" :href="route('admin.campaigns.destroy', $campaign)" method="DELETE" confirm="Supprimer cette campagne ?" />
                                     @endif
                                 </td>
                             </tr>

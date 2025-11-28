@@ -74,6 +74,64 @@
         </div>
     </div>
 
+    <!-- Graphiques - Ligne 1 -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Graphique Inscriptions (7 derniers jours) -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-lg font-bold text-gray-900 mb-4">Évolution des Inscriptions (7 derniers jours)</h2>
+            <canvas id="registrationChart" height="80"></canvas>
+        </div>
+
+        <!-- Graphique Sources -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-lg font-bold text-gray-900 mb-4">Répartition par Source</h2>
+            <canvas id="sourceChart" height="80"></canvas>
+        </div>
+    </div>
+
+    <!-- Graphiques - Ligne 2 -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Graphique Top Villages -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-lg font-bold text-gray-900 mb-4">Top 5 Villages</h2>
+            <canvas id="villageChart" height="80"></canvas>
+        </div>
+
+        <!-- Taux de Livraison Messages -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-lg font-bold text-gray-900 mb-4">Taux de Livraison Messages</h2>
+            <div class="relative pt-1">
+                <div class="flex mb-2 items-center justify-between">
+                    <div>
+                        <span class="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-green-600 bg-green-200">
+                            {{ $messagesDelivered }} / {{ $totalMessages }}
+                        </span>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-xs font-semibold inline-block text-green-600">
+                            {{ $deliveryRate }}%
+                        </span>
+                    </div>
+                </div>
+                <div class="overflow-hidden h-2 mb-4 text-xs flex rounded bg-green-200">
+                    <div style="width: {{ $deliveryRate }}%" class="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-green-500"></div>
+                </div>
+            </div>
+
+            <!-- Stats supplémentaires -->
+            <div class="grid grid-cols-2 gap-4 mt-6">
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <p class="text-sm text-gray-600">Total Envoyés</p>
+                    <p class="text-2xl font-bold text-gray-900">{{ number_format($totalMessages) }}</p>
+                </div>
+                <div class="bg-green-50 rounded-lg p-4">
+                    <p class="text-sm text-gray-600">Délivrés</p>
+                    <p class="text-2xl font-bold text-green-600">{{ number_format($messagesDelivered) }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Recent Activity & Quick Actions -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Prochains Matchs -->
@@ -180,4 +238,97 @@
         </div>
     </div>
 </div>
+
+<script>
+// 1. Graphique des Inscriptions (7 derniers jours)
+const regData = @json($registrationChart);
+const regLabels = regData.map(d => {
+    const date = new Date(d.date);
+    return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+});
+const regCounts = regData.map(d => d.count);
+
+new Chart(document.getElementById('registrationChart'), {
+    type: 'line',
+    data: {
+        labels: regLabels,
+        datasets: [{
+            label: 'Nouvelles Inscriptions',
+            data: regCounts,
+            borderColor: 'rgb(59, 130, 246)',
+            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+            tension: 0.4,
+            fill: true
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false }
+        },
+        scales: {
+            y: { beginAtZero: true }
+        }
+    }
+});
+
+// 2. Graphique des Sources d'inscription
+const sourceData = @json($sourceStats);
+const sourceLabels = sourceData.map(d => d.source_type || 'Autre');
+const sourceCounts = sourceData.map(d => d.count);
+
+new Chart(document.getElementById('sourceChart'), {
+    type: 'doughnut',
+    data: {
+        labels: sourceLabels,
+        datasets: [{
+            data: sourceCounts,
+            backgroundColor: [
+                'rgb(59, 130, 246)',
+                'rgb(16, 185, 129)',
+                'rgb(251, 191, 36)',
+                'rgb(239, 68, 68)',
+                'rgb(139, 92, 246)',
+                'rgb(236, 72, 153)'
+            ]
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { position: 'bottom' }
+        }
+    }
+});
+
+// 3. Graphique des Top Villages
+const villageData = @json($topVillages);
+const villageLabels = villageData.map(v => v.name);
+const villageCounts = villageData.map(v => v.users_count);
+
+new Chart(document.getElementById('villageChart'), {
+    type: 'bar',
+    data: {
+        labels: villageLabels,
+        datasets: [{
+            label: 'Nombre d\'inscrits',
+            data: villageCounts,
+            backgroundColor: 'rgb(34, 197, 94)',
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        indexAxis: 'y',
+        plugins: {
+            legend: { display: false }
+        },
+        scales: {
+            x: { beginAtZero: true }
+        }
+    }
+});
+</script>
 @endsection

@@ -77,13 +77,9 @@
                             @endif
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-                            <a href="{{ route('admin.prizes.show', $prize) }}" class="text-blue-600 hover:text-blue-900">Voir</a>
-                            <a href="{{ route('admin.prizes.edit', $prize) }}" class="text-indigo-600 hover:text-indigo-900">Modifier</a>
-                            <form action="{{ route('admin.prizes.destroy', $prize) }}" method="POST" class="inline-block" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer ce lot ?');">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="text-red-600 hover:text-red-900">Supprimer</button>
-                            </form>
+                            <x-action-button type="view" :href="route('admin.prizes.show', $prize)" />
+                            <x-action-button type="edit" :href="route('admin.prizes.edit', $prize)" />
+                            <x-action-button type="delete" :href="route('admin.prizes.destroy', $prize)" method="DELETE" confirm="Êtes-vous sûr de vouloir supprimer ce lot ?" />
                         </td>
                     </tr>
                 @empty

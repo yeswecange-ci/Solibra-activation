@@ -107,13 +107,9 @@
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {{ $prono->created_at->format('d/m/Y H:i') }}
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <a href="{{ route('admin.pronostics.show', $prono) }}" class="text-blue-600 hover:text-blue-900">Voir</a>
-                            <form action="{{ route('admin.pronostics.destroy', $prono) }}" method="POST" class="inline-block ml-2" onsubmit="return confirm('Supprimer ce pronostic ?');">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="text-red-600 hover:text-red-900">Supprimer</button>
-                            </form>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                            <x-action-button type="view" :href="route('admin.pronostics.show', $prono)" />
+                            <x-action-button type="delete" :href="route('admin.pronostics.destroy', $prono)" method="DELETE" confirm="Supprimer ce pronostic ?" />
                         </td>
                     </tr>
                 @empty

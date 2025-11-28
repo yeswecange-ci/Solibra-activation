@@ -82,13 +82,9 @@
                                     @endif
                                 </td>
                                 <td class="px-6 py-4 text-right text-sm font-medium space-x-2">
-                                    <a href="{{ route('admin.templates.show', $template) }}" class="text-blue-600 hover:text-blue-900">Voir</a>
-                                    <a href="{{ route('admin.templates.edit', $template) }}" class="text-indigo-600 hover:text-indigo-900">Modifier</a>
-                                    <form action="{{ route('admin.templates.destroy', $template) }}" method="POST" class="inline-block" onsubmit="return confirm('Supprimer ce template ?')">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="text-red-600 hover:text-red-900">Supprimer</button>
-                                    </form>
+                                    <x-action-button type="view" :href="route('admin.templates.show', $template)" />
+                                    <x-action-button type="edit" :href="route('admin.templates.edit', $template)" />
+                                    <x-action-button type="delete" :href="route('admin.templates.destroy', $template)" method="DELETE" confirm="Supprimer ce template ?" />
                                 </td>
                             </tr>
                         @endforeach

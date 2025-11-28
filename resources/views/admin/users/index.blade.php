@@ -107,12 +107,8 @@
                             @endif
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
-                            <a href="{{ route('admin.users.show', $user) }}" class="text-blue-600 hover:text-blue-900">Voir</a>
-                            <form action="{{ route('admin.users.destroy', $user) }}" method="POST" class="inline-block" onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer ce joueur ?');">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="text-red-600 hover:text-red-900">Supprimer</button>
-                            </form>
+                            <x-action-button type="view" :href="route('admin.users.show', $user)" />
+                            <x-action-button type="delete" :href="route('admin.users.destroy', $user)" method="DELETE" confirm="Êtes-vous sûr de vouloir supprimer ce joueur ?" />
                         </td>
                     </tr>
                 @empty
