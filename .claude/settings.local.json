@@ -5,7 +5,9 @@
       "Bash(php artisan:*)",
       "Bash(composer require:*)",
       "Bash(composer show:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(npm run build:*)",
+      "Bash(dir \"C:\\YESWECANGE\\can-activation-kinshasa\\public\\build\" /s)"
     ],
     "deny": [],
     "ask": []

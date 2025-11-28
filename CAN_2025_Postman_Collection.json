@@ -1,0 +1,305 @@
+{
+	"info": {
+		"name": "CAN 2025 Kinshasa - API",
+		"description": "Collection complète des endpoints API pour le projet CAN 2025 Kinshasa",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "https://wabracongo.ywcdigital.com",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Twilio Studio Flow",
+			"item": [
+				{
+					"name": "1. Scan QR Code",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"phone\": \"whatsapp:+243812345678\",\n  \"source_type\": \"AFFICHE\",\n  \"source_detail\": \"GOMBE\",\n  \"timestamp\": \"2025-11-28 12:00:00\",\n  \"status\": \"SCAN\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/can/scan",
+							"host": ["{{base_url}}"],
+							"path": ["api", "can", "scan"]
+						},
+						"description": "Log du scan QR code initial"
+					},
+					"response": []
+				},
+				{
+					"name": "2. Opt-in (OUI)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"phone\": \"whatsapp:+243812345678\",\n  \"status\": \"OPT_IN\",\n  \"timestamp\": \"2025-11-28 12:01:00\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/can/optin",
+							"host": ["{{base_url}}"],
+							"path": ["api", "can", "optin"]
+						},
+						"description": "Log de l'opt-in (réponse OUI)"
+					},
+					"response": []
+				},
+				{
+					"name": "3. Inscription finale",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"phone\": \"whatsapp:+243812345678\",\n  \"name\": \"Jean Kabongo\",\n  \"source_type\": \"AFFICHE\",\n  \"source_detail\": \"GOMBE\",\n  \"status\": \"INSCRIT\",\n  \"timestamp\": \"2025-11-28 12:02:00\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/can/inscription",
+							"host": ["{{base_url}}"],
+							"path": ["api", "can", "inscription"]
+						},
+						"description": "Inscription finale avec nom et création utilisateur"
+					},
+					"response": []
+				},
+				{
+					"name": "4. Refus Opt-in (NON)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"phone\": \"whatsapp:+243812345678\",\n  \"status\": \"REFUS\",\n  \"timestamp\": \"2025-11-28 12:01:30\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/can/refus",
+							"host": ["{{base_url}}"],
+							"path": ["api", "can", "refus"]
+						},
+						"description": "Log du refus d'opt-in (réponse NON)"
+					},
+					"response": []
+				},
+				{
+					"name": "5. Désinscription (STOP)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"phone\": \"whatsapp:+243812345678\",\n  \"status\": \"STOP\",\n  \"timestamp\": \"2025-11-28 12:03:00\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/can/stop",
+							"host": ["{{base_url}}"],
+							"path": ["api", "can", "stop"]
+						},
+						"description": "Désinscription complète (STOP)"
+					},
+					"response": []
+				},
+				{
+					"name": "6. Abandon processus",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"phone\": \"whatsapp:+243812345678\",\n  \"status\": \"ABANDON_OPTIN\",\n  \"timestamp\": \"2025-11-28 12:01:45\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/can/abandon",
+							"host": ["{{base_url}}"],
+							"path": ["api", "can", "abandon"]
+						},
+						"description": "Abandon du processus d'inscription"
+					},
+					"response": []
+				},
+				{
+					"name": "7. Timeout",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"phone\": \"whatsapp:+243812345678\",\n  \"status\": \"TIMEOUT_ACCUEIL\",\n  \"timestamp\": \"2025-11-28 13:00:00\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/can/timeout",
+							"host": ["{{base_url}}"],
+							"path": ["api", "can", "timeout"]
+						},
+						"description": "Timeout dans le flow Twilio Studio"
+					},
+					"response": []
+				},
+				{
+					"name": "8. Erreur de livraison",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"phone\": \"whatsapp:+243812345678\",\n  \"status\": \"DELIVERY_FAILED\",\n  \"timestamp\": \"2025-11-28 12:00:30\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/can/error",
+							"host": ["{{base_url}}"],
+							"path": ["api", "can", "error"]
+						},
+						"description": "Erreur de livraison WhatsApp"
+					},
+					"response": []
+				}
+			],
+			"description": "Endpoints pour le flow Twilio Studio CAN 2025"
+		},
+		{
+			"name": "WhatsApp Webhooks",
+			"item": [
+				{
+					"name": "Receive Message",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/x-www-form-urlencoded"
+							}
+						],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "From",
+									"value": "whatsapp:+243812345678",
+									"type": "text"
+								},
+								{
+									"key": "Body",
+									"value": "Bonjour",
+									"type": "text"
+								},
+								{
+									"key": "MessageSid",
+									"value": "SM1234567890abcdef",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/api/webhook/whatsapp",
+							"host": ["{{base_url}}"],
+							"path": ["api", "webhook", "whatsapp"]
+						},
+						"description": "Webhook principal pour recevoir les messages WhatsApp"
+					},
+					"response": []
+				},
+				{
+					"name": "Status Callback",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/x-www-form-urlencoded"
+							}
+						],
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "MessageSid",
+									"value": "SM1234567890abcdef",
+									"type": "text"
+								},
+								{
+									"key": "MessageStatus",
+									"value": "delivered",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/api/webhook/whatsapp/status",
+							"host": ["{{base_url}}"],
+							"path": ["api", "webhook", "whatsapp", "status"]
+						},
+						"description": "Webhook pour tracker le statut des messages envoyés"
+					},
+					"response": []
+				}
+			],
+			"description": "Webhooks WhatsApp/Twilio pour la messagerie"
+		},
+		{
+			"name": "QR Code Public",
+			"item": [
+				{
+					"name": "Scan QR Code (Public)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/qr/START_AFF_GOMBE",
+							"host": ["{{base_url}}"],
+							"path": ["qr", "START_AFF_GOMBE"]
+						},
+						"description": "Scan d'un QR code public (redirige vers WhatsApp)"
+					},
+					"response": []
+				}
+			],
+			"description": "Endpoint public pour scanner les QR codes"
+		}
+	]
+}

@@ -13,10 +13,20 @@ export default defineConfig({
     build: {
         manifest: true,
         outDir: 'public/build',
+        // Désactiver le sous-dossier .vite pour compatibilité Laravel
         rollupOptions: {
             output: {
                 manualChunks: undefined,
             },
         },
     },
+
+    // Forcer le manifest à la racine du build
+    experimental: {
+        renderBuiltUrl(filename, { hostType }) {
+            if (hostType === 'js') {
+                return { runtime: `window.__publicPath + ${JSON.stringify(filename)}` }
+            }
+        }
+    }
 });

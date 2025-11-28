@@ -3,7 +3,8 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "build": "vite build",
+        "build": "vite build && npm run post-build",
+        "post-build": "node -e \"require('fs').copyFileSync('public/build/.vite/manifest.json', 'public/build/manifest.json')\"",
         "dev": "vite"
     },
     "devDependencies": {
