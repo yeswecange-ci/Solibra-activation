@@ -146,11 +146,67 @@ class QrCodeController extends Controller
             $qrCode->incrementScan();
         }
 
-        // Récupérer le numéro WhatsApp
-        $whatsappNumber = config('services.whatsapp.number', env('WHATSAPP_NUMBER', 'YOUR_WHATSAPP_NUMBER'));
-        $message = urlencode("Je veux m'inscrire à CAN2025 avec le code: {$code}");
+        // Numéro WhatsApp du bot (sans le +)
+        $whatsappNumber = '243841622222';
 
-        // Rediriger vers WhatsApp
-        return redirect("https://wa.me/{$whatsappNumber}?text={$message}");
+        // Générer le message selon la source du QR code
+        $message = $this->generateStartMessage($qrCode->source);
+
+        // Rediriger vers WhatsApp avec le message pré-rempli
+        // Format: https://wa.me/NUMERO?text=MESSAGE
+        return redirect("https://wa.me/{$whatsappNumber}?text=" . urlencode($message));
+    }
+
+    /**
+     * Générer le message de démarrage selon la source
+     */
+    protected function generateStartMessage($source)
+    {
+        // Normaliser la source (supprimer espaces, majuscules)
+        $source = strtoupper(str_replace(' ', '_', trim($source)));
+
+        // Mapper les sources vers les commandes du Flow Twilio Studio
+        $sourceMap = [
+            // Affiches par village
+            'AFFICHE_GOMBE' => 'START_AFF_GOMBE',
+            'AFFICHE_MASINA' => 'START_AFF_MASINA',
+            'AFFICHE_LEMBA' => 'START_AFF_LEMBA',
+            'AFFICHE_BANDA' => 'START_AFF_BANDA',
+            'AFFICHE_NGALIEMA' => 'START_AFF_NGALI',
+            'GOMBE' => 'START_AFF_GOMBE',
+            'MASINA' => 'START_AFF_MASINA',
+            'LEMBA' => 'START_AFF_LEMBA',
+            'BANDA' => 'START_AFF_BANDA',
+            'NGALIEMA' => 'START_AFF_NGALI',
+
+            // Points de vente partenaires
+            'PDV_BRACONGO' => 'START_PDV_BRACONGO',
+            'PDV_VODACOM' => 'START_PDV_VODACOM',
+            'PDV_ORANGE' => 'START_PDV_ORANGE',
+            'PDV_AIRTEL' => 'START_PDV_AIRTEL',
+            'BRACONGO' => 'START_PDV_BRACONGO',
+            'VODACOM' => 'START_PDV_VODACOM',
+            'ORANGE' => 'START_PDV_ORANGE',
+            'AIRTEL' => 'START_PDV_AIRTEL',
+
+            // Digital
+            'FACEBOOK' => 'START_FB',
+            'INSTAGRAM' => 'START_IG',
+            'TIKTOK' => 'START_TIKTOK',
+            'WHATSAPP_STATUS' => 'START_WA_STATUS',
+            'FB' => 'START_FB',
+            'IG' => 'START_IG',
+
+            // Flyers
+            'FLYER_UNIVERSITE' => 'START_FLYER_UNI',
+            'FLYER_RUE' => 'START_FLYER_RUE',
+            'FLYER_EVENEMENT' => 'START_FLYER_EVENT',
+            'UNIVERSITE' => 'START_FLYER_UNI',
+            'RUE' => 'START_FLYER_RUE',
+            'EVENEMENT' => 'START_FLYER_EVENT',
+        ];
+
+        // Retourner le message mappé ou un message par défaut
+        return $sourceMap[$source] ?? 'START_AFF_GOMBE';
     }
 }
