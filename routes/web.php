@@ -103,6 +103,22 @@ Route::prefix('admin')->group(function () {
         Route::get('matches/{match}/pronostics', [\App\Http\Controllers\Admin\PronosticController::class, 'byMatch'])
             ->name('admin.pronostics.by-match');
 
+        // Routes Templates de Messages
+        Route::resource('templates', \App\Http\Controllers\Admin\MessageTemplateController::class)
+            ->names([
+                'index'   => 'admin.templates.index',
+                'create'  => 'admin.templates.create',
+                'store'   => 'admin.templates.store',
+                'show'    => 'admin.templates.show',
+                'edit'    => 'admin.templates.edit',
+                'update'  => 'admin.templates.update',
+                'destroy' => 'admin.templates.destroy',
+            ]);
+        Route::post('templates/{template}/duplicate', [\App\Http\Controllers\Admin\MessageTemplateController::class, 'duplicate'])
+            ->name('admin.templates.duplicate');
+        Route::get('templates/{template}/preview', [\App\Http\Controllers\Admin\MessageTemplateController::class, 'preview'])
+            ->name('admin.templates.preview');
+
         // Routes Campagnes
         Route::resource('campaigns', \App\Http\Controllers\Admin\CampaignController::class)
             ->names([
