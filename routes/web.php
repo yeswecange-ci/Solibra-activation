@@ -102,5 +102,37 @@ Route::prefix('admin')->group(function () {
             ->name('admin.pronostics.destroy');
         Route::get('matches/{match}/pronostics', [\App\Http\Controllers\Admin\PronosticController::class, 'byMatch'])
             ->name('admin.pronostics.by-match');
+
+        // Routes Campagnes
+        Route::resource('campaigns', \App\Http\Controllers\Admin\CampaignController::class)
+            ->names([
+                'index'   => 'admin.campaigns.index',
+                'create'  => 'admin.campaigns.create',
+                'store'   => 'admin.campaigns.store',
+                'show'    => 'admin.campaigns.show',
+                'edit'    => 'admin.campaigns.edit',
+                'update'  => 'admin.campaigns.update',
+                'destroy' => 'admin.campaigns.destroy',
+            ]);
+        Route::get('campaigns/{campaign}/confirm-send', [\App\Http\Controllers\Admin\CampaignController::class, 'confirmSend'])
+            ->name('admin.campaigns.confirm-send');
+        Route::post('campaigns/{campaign}/send', [\App\Http\Controllers\Admin\CampaignController::class, 'send'])
+            ->name('admin.campaigns.send');
+        Route::post('campaigns/{campaign}/test', [\App\Http\Controllers\Admin\CampaignController::class, 'test'])
+            ->name('admin.campaigns.test');
+
+        // Routes Classement
+        Route::get('leaderboard', [\App\Http\Controllers\Admin\LeaderboardController::class, 'index'])
+            ->name('admin.leaderboard');
+        Route::get('leaderboard/village/{village}', [\App\Http\Controllers\Admin\LeaderboardController::class, 'village'])
+            ->name('admin.leaderboard.village');
+
+        // Routes Analytics
+        Route::get('analytics', [\App\Http\Controllers\Admin\AnalyticsController::class, 'index'])
+            ->name('admin.analytics');
+        Route::get('analytics/export/users', [\App\Http\Controllers\Admin\AnalyticsController::class, 'exportUsers'])
+            ->name('admin.analytics.export.users');
+        Route::get('analytics/export/pronostics', [\App\Http\Controllers\Admin\AnalyticsController::class, 'exportPronostics'])
+            ->name('admin.analytics.export.pronostics');
     });
 });

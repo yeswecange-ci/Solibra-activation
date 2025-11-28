@@ -8,7 +8,9 @@
       "Bash(cat:*)",
       "Bash(npm run build:*)",
       "Bash(dir \"C:\\YESWECANGE\\can-activation-kinshasa\\public\\build\" /s)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []
