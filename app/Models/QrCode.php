@@ -14,6 +14,7 @@ class QrCode extends Model
     protected $fillable = [
         'code',
         'source',
+        'village_id',
         'qr_image_path',
         'scan_count',
         'is_active',
@@ -23,6 +24,14 @@ class QrCode extends Model
         'is_active' => 'boolean',
         'scan_count' => 'integer',
     ];
+
+    /**
+     * Relation avec Village
+     */
+    public function village()
+    {
+        return $this->belongsTo(Village::class);
+    }
 
     /**
      * Incrémenter le compteur de scans de manière atomique

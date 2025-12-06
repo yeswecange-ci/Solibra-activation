@@ -3,6 +3,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\QrCode;
+use App\Models\Village;
 use Endroid\QrCode\Builder\Builder;
 use Endroid\QrCode\Encoding\Encoding;
 use Endroid\QrCode\ErrorCorrectionLevel;
@@ -23,13 +24,15 @@ class QrCodeController extends Controller
 
     public function create()
     {
-        return view('admin.qrcodes.create');
+        $villages = Village::where('is_active', true)->orderBy('name')->get();
+        return view('admin.qrcodes.create', compact('villages'));
     }
 
     public function store(Request $request)
     {
         $validated = $request->validate([
             'source' => 'required|string|max:255',
+            'village_id' => 'nullable|exists:villages,id',
         ]);
 
         // Générer un code unique (avec vérification d'unicité)
@@ -90,13 +93,15 @@ class QrCodeController extends Controller
 
     public function edit(QrCode $qrcode)
     {
-        return view('admin.qrcodes.edit', compact('qrcode'));
+        $villages = Village::where('is_active', true)->orderBy('name')->get();
+        return view('admin.qrcodes.edit', compact('qrcode', 'villages'));
     }
 
     public function update(Request $request, QrCode $qrcode)
     {
         $validated = $request->validate([
             'source' => 'required|string|max:255',
+            'village_id' => 'nullable|exists:villages,id',
         ]);
 
         $validated['is_active'] = $request->boolean('is_active', false);
@@ -135,7 +140,7 @@ class QrCodeController extends Controller
      */
     public function scan($code)
     {
-        $qrCode = QrCode::where('code', strtoupper($code))->first();
+        $qrCode = QrCode::where('code', strtoupper($code))->with('village')->first();
 
         if (! $qrCode) {
             abort(404, 'QR Code invalide');
@@ -149,8 +154,8 @@ class QrCodeController extends Controller
         // Numéro WhatsApp du bot (sans le +)
         $whatsappNumber = '243841622222';
 
-        // Générer le message selon la source du QR code
-        $message = $this->generateStartMessage($qrCode->source);
+        // Générer le message selon le village ou la source du QR code
+        $message = $this->generateStartMessage($qrCode);
 
         // Rediriger vers WhatsApp avec le message pré-rempli
         // Format: https://wa.me/NUMERO?text=MESSAGE
@@ -158,12 +163,20 @@ class QrCodeController extends Controller
     }
 
     /**
-     * Générer le message de démarrage selon la source
+     * Générer le message de démarrage selon le QR code
      */
-    protected function generateStartMessage($source)
+    protected function generateStartMessage(QrCode $qrCode)
     {
-        // Normaliser la source (supprimer espaces, majuscules)
-        $source = strtoupper(str_replace(' ', '_', trim($source)));
+        // Si un village est sélectionné, utiliser le format START_AFF_{VILLAGE}
+        if ($qrCode->village) {
+            $villageName = strtoupper(str_replace(' ', '_', trim($qrCode->village->name)));
+            // Limiter à 12 caractères pour matcher avec le flow Twilio
+            $villageName = substr($villageName, 0, 12);
+            return "START_AFF_{$villageName}";
+        }
+
+        // Sinon, utiliser le mapping basé sur la source
+        $source = strtoupper(str_replace(' ', '_', trim($qrCode->source)));
 
         // Mapper les sources vers les commandes du Flow Twilio Studio
         $sourceMap = [

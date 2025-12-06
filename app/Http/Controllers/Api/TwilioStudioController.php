@@ -124,10 +124,16 @@ class TwilioStudioController extends Controller
                 'phone' => $phone,
             ]);
         } else {
-            // Nouvel utilisateur - créer avec village par défaut
-            $defaultVillage = Village::where('is_active', true)->first();
+            // Nouvel utilisateur - extraire le village depuis la source
+            $villageId = $this->extractVillageFromSource($validated['source_type'], $validated['source_detail']);
 
-            if (!$defaultVillage) {
+            if (!$villageId) {
+                // Si pas de village trouvé, utiliser le premier village actif
+                $defaultVillage = Village::where('is_active', true)->first();
+                $villageId = $defaultVillage ? $defaultVillage->id : null;
+            }
+
+            if (!$villageId) {
                 return response()->json([
                     'success' => false,
                     'message' => 'No active village available',
@@ -137,7 +143,7 @@ class TwilioStudioController extends Controller
             $user = User::create([
                 'name' => ucwords(strtolower($validated['name'])),
                 'phone' => $phone,
-                'village_id' => $defaultVillage->id, // Attribution temporaire
+                'village_id' => $villageId,
                 'source_type' => $validated['source_type'],
                 'source_detail' => $validated['source_detail'],
                 'scan_timestamp' => $validated['timestamp'] ?? now(),
@@ -149,6 +155,7 @@ class TwilioStudioController extends Controller
             Log::info('Twilio Studio - New user registered', [
                 'user_id' => $user->id,
                 'phone' => $phone,
+                'village_id' => $villageId,
                 'source' => $validated['source_type'] . ' / ' . $validated['source_detail'],
             ]);
         }
@@ -612,6 +619,32 @@ class TwilioStudioController extends Controller
             'count' => $prizes->count(),
             'prizes' => $formattedPrizes,
         ]);
+    }
+
+    /**
+     * Extraire le village depuis la source
+     */
+    private function extractVillageFromSource(string $sourceType, string $sourceDetail): ?int
+    {
+        // Si la source est AFFICHE, le source_detail contient le nom du village
+        if ($sourceType === 'AFFICHE') {
+            $villageName = $sourceDetail;
+
+            // Essayer de trouver le village correspondant
+            $village = Village::where('is_active', true)
+                ->where(function ($query) use ($villageName) {
+                    $query->where('name', 'LIKE', "%{$villageName}%")
+                          ->orWhereRaw('UPPER(name) = ?', [strtoupper($villageName)]);
+                })
+                ->first();
+
+            if ($village) {
+                return $village->id;
+            }
+        }
+
+        // Pour les autres types de sources, retourner null (utiliser le village par défaut)
+        return null;
     }
 
     /**
