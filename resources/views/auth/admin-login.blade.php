@@ -188,6 +188,7 @@
 
             <!-- Form -->
             <form method="POST" action="/admin/login">
+                @csrf
                 <!-- Email -->
                 <div class="form-group">
                     <label for="email" class="form-label">Email</label>
