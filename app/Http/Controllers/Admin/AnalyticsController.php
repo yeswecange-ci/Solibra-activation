@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\CampaignMessage;
 use App\Models\User;
 use App\Models\ConversationSession;
 use App\Models\Pronostic;
@@ -45,11 +46,19 @@ class AnalyticsController extends Controller
             ->orderByRaw("FIELD(day, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday')")
             ->get();
 
-        // Messages WhatsApp stats
+        // Messages WhatsApp stats (MessageLog + CampaignMessage)
+        $messageLogTotal = MessageLog::count();
+        $messageLogDelivered = MessageLog::where('status', 'delivered')->count();
+        $messageLogFailed = MessageLog::where('status', 'failed')->count();
+
+        $campaignMessageTotal = CampaignMessage::whereIn('status', ['sent', 'delivered', 'failed'])->count();
+        $campaignMessageDelivered = CampaignMessage::where('status', 'delivered')->count();
+        $campaignMessageFailed = CampaignMessage::where('status', 'failed')->count();
+
         $messageStats = [
-            'total' => MessageLog::count(),
-            'delivered' => MessageLog::where('status', 'delivered')->count(),
-            'failed' => MessageLog::where('status', 'failed')->count(),
+            'total' => $messageLogTotal + $campaignMessageTotal,
+            'delivered' => $messageLogDelivered + $campaignMessageDelivered,
+            'failed' => $messageLogFailed + $campaignMessageFailed,
         ];
 
         return view('admin.analytics.index', compact('funnel', 'sourceStats', 'dayStats', 'messageStats'));

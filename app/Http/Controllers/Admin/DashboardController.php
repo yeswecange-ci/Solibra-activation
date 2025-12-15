@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Campaign;
+use App\Models\CampaignMessage;
 use App\Models\FootballMatch;
 use App\Models\MessageLog;
 use App\Models\Pronostic;
@@ -52,9 +53,16 @@ class DashboardController extends Controller
             ? round(($usersWithPronostics / $totalUsers) * 100, 1)
             : 0;
 
-        // 4. Messages envoyés
-        $totalMessages = MessageLog::count();
-        $messagesDelivered = MessageLog::where('status', 'delivered')->count();
+        // 4. Messages envoyés (MessageLog + CampaignMessage)
+        $messageLogTotal = MessageLog::count();
+        $messageLogDelivered = MessageLog::where('status', 'delivered')->count();
+
+        $campaignMessageTotal = CampaignMessage::whereIn('status', ['sent', 'delivered', 'failed'])->count();
+        $campaignMessageDelivered = CampaignMessage::where('status', 'delivered')->count();
+
+        $totalMessages = $messageLogTotal + $campaignMessageTotal;
+        $messagesDelivered = $messageLogDelivered + $campaignMessageDelivered;
+
         $deliveryRate = $totalMessages > 0
             ? round(($messagesDelivered / $totalMessages) * 100, 1)
             : 0;

@@ -23,7 +23,7 @@
         </div>
 
         <!-- Statut & Stats -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
             <div class="bg-white shadow rounded-lg p-6">
                 <div class="text-sm font-medium text-gray-500">Statut</div>
                 <div class="mt-2">
@@ -31,7 +31,7 @@
                         <span class="px-3 py-1 text-sm font-semibold text-gray-700 bg-gray-200 rounded-full">Brouillon</span>
                     @elseif($campaign->status === 'scheduled')
                         <span class="px-3 py-1 text-sm font-semibold text-yellow-700 bg-yellow-200 rounded-full">Programmé</span>
-                    @elseif($campaign->status === 'sending')
+                    @elseif($campaign->status === 'processing')
                         <span class="px-3 py-1 text-sm font-semibold text-blue-700 bg-blue-200 rounded-full">En cours</span>
                     @else
                         <span class="px-3 py-1 text-sm font-semibold text-green-700 bg-green-200 rounded-full">Envoyé</span>
@@ -40,22 +40,23 @@
             </div>
 
             <div class="bg-white shadow rounded-lg p-6">
-                <div class="text-sm font-medium text-gray-500">Destinataires</div>
-                <div class="mt-2 text-2xl font-bold text-gray-900">{{ number_format($campaign->total_recipients) }}</div>
+                <div class="text-sm font-medium text-gray-500">Total</div>
+                <div class="mt-2 text-2xl font-bold text-gray-900">{{ number_format($stats['total']) }}</div>
             </div>
 
             <div class="bg-white shadow rounded-lg p-6">
                 <div class="text-sm font-medium text-gray-500">Envoyés</div>
-                <div class="mt-2">
-                    @if($campaign->status === 'sent')
-                        <div class="text-2xl font-bold text-green-600">{{ $campaign->sent_count ?? 0 }}</div>
-                        @if($campaign->failed_count > 0)
-                            <div class="text-sm text-red-600 mt-1">{{ $campaign->failed_count }} échecs</div>
-                        @endif
-                    @else
-                        <div class="text-2xl font-bold text-gray-400">-</div>
-                    @endif
-                </div>
+                <div class="mt-2 text-2xl font-bold text-blue-600">{{ number_format($stats['sent']) }}</div>
+            </div>
+
+            <div class="bg-white shadow rounded-lg p-6">
+                <div class="text-sm font-medium text-gray-500">Délivrés</div>
+                <div class="mt-2 text-2xl font-bold text-green-600">{{ number_format($stats['delivered']) }}</div>
+            </div>
+
+            <div class="bg-white shadow rounded-lg p-6">
+                <div class="text-sm font-medium text-gray-500">Échecs</div>
+                <div class="mt-2 text-2xl font-bold text-red-600">{{ number_format($stats['failed']) }}</div>
             </div>
         </div>
 
@@ -124,6 +125,52 @@
                 </p>
             </div>
         </div>
+
+        <!-- Liste des messages en échec -->
+        @if($campaign->status === 'sent' && $failedMessages->count() > 0)
+            <div class="bg-white shadow rounded-lg p-6 mt-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Messages en Échec ({{ $failedMessages->count() }})</h2>
+
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Nom
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Numéro
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Raison de l'échec
+                                </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Date
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            @foreach($failedMessages as $failedMsg)
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                        {{ $failedMsg->user->name ?? 'N/A' }}
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        {{ $failedMsg->user->phone ?? 'N/A' }}
+                                    </td>
+                                    <td class="px-6 py-4 text-sm text-red-600">
+                                        {{ $failedMsg->error_message ?? 'Erreur inconnue' }}
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        {{ $failedMsg->updated_at->format('d/m/Y H:i') }}
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        @endif
 
         @if($campaign->status === 'draft')
             <div class="mt-6 flex justify-end">

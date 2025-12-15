@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Campaign;
 use App\Models\CampaignMessage;
 use App\Models\FootballMatch;
+use App\Models\MessageLog;
 use App\Models\MessageTemplate;
 use App\Models\User;
 use App\Models\Village;
@@ -85,7 +86,14 @@ class CampaignController extends Controller
             'pending' => $campaign->messages()->where('status', 'pending')->count(),
         ];
 
-        return view('admin.campaigns.show', compact('campaign', 'stats'));
+        // Charger les messages en échec avec les détails utilisateur
+        $failedMessages = $campaign->messages()
+            ->where('status', 'failed')
+            ->with('user')
+            ->latest()
+            ->get();
+
+        return view('admin.campaigns.show', compact('campaign', 'stats', 'failedMessages'));
     }
 
     public function edit(Campaign $campaign)
@@ -225,12 +233,32 @@ class CampaignController extends Controller
                         'sent_at' => now(),
                         'twilio_sid' => $result['sid']
                     ]);
+
+                    // Logger dans MessageLog pour les stats globales
+                    MessageLog::create([
+                        'user_id' => $message->user_id,
+                        'campaign_id' => $campaign->id,
+                        'twilio_sid' => $result['sid'],
+                        'status' => 'sent',
+                        'sent_at' => now(),
+                    ]);
+
                     $sent++;
                 } else {
+                    $errorMsg = $result['error'] ?? 'Failed to send';
                     $message->update([
                         'status' => 'failed',
-                        'error_message' => 'Failed to send'
+                        'error_message' => $errorMsg
                     ]);
+
+                    // Logger dans MessageLog pour les stats globales
+                    MessageLog::create([
+                        'user_id' => $message->user_id,
+                        'campaign_id' => $campaign->id,
+                        'status' => 'failed',
+                        'error_message' => $errorMsg,
+                    ]);
+
                     $failed++;
                 }
 
@@ -242,6 +270,15 @@ class CampaignController extends Controller
                     'status' => 'failed',
                     'error_message' => $e->getMessage()
                 ]);
+
+                // Logger dans MessageLog pour les stats globales
+                MessageLog::create([
+                    'user_id' => $message->user_id,
+                    'campaign_id' => $campaign->id,
+                    'status' => 'failed',
+                    'error_message' => $e->getMessage(),
+                ]);
+
                 $failed++;
                 Log::error('Campaign message sending failed', [
                     'message_id' => $message->id,
