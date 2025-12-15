@@ -736,15 +736,18 @@ class TwilioStudioController extends Controller
                 'prediction' => $validated['prediction_type'],
             ]);
 
+            // Retour JSON avec headers explicites pour Twilio Studio
             return response()->json([
                 'success'   => true,
-                'message'   => "✅ Pronostic enregistré !\n\n{$match->team_a} vs {$match->team_b}\n🎯 Ton pronostic : {$predictionText}",
+                'message'   => "Pronostic enregistre ! " . $match->team_a . " vs " . $match->team_b . " - Ton pronostic : " . $predictionText,
                 'pronostic' => [
                     'id'              => $pronostic->id,
                     'match'           => "{$match->team_a} vs {$match->team_b}",
                     'prediction_type' => $validated['prediction_type'],
                     'prediction_text' => $predictionText,
                 ],
+            ], 200, [
+                'Content-Type' => 'application/json; charset=utf-8',
             ]);
         }
 
