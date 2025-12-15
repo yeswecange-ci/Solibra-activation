@@ -76,8 +76,9 @@ class Pronostic extends Model
             return false;
         }
 
-        // Pas de pronostic si le match est dans moins de 5 minutes
-        if ($match->match_date->diffInMinutes(now(), false) < 5) {
+        // Pas de pronostic si le match est dans le passé ou dans moins de 5 minutes
+        $minutesUntilMatch = now()->diffInMinutes($match->match_date, false);
+        if ($minutesUntilMatch < 5) {
             return false;
         }
 

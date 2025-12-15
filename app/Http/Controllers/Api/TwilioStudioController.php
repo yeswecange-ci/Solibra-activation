@@ -567,13 +567,14 @@ class TwilioStudioController extends Controller
     public function getMatchesFormatted(Request $request)
     {
         $limit = $request->input('limit', 5); // Par défaut 5 matchs
-        $days = $request->input('days', 7); // Par défaut 7 jours
+        $days = $request->input('days', 30); // Par défaut 30 jours (augmenté de 7 à 30)
 
         $now = now();
         $endDate = now()->addDays($days);
 
         $matches = FootballMatch::where('match_date', '>=', $now)
             ->where('match_date', '<=', $endDate)
+            ->where('pronostic_enabled', true) // Seulement les matchs avec pronostics activés
             ->whereIn('status', ['scheduled', 'live'])
             ->orderBy('match_date', 'asc')
             ->limit($limit)

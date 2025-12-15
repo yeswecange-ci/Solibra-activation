@@ -14,7 +14,9 @@
       "Bash(git push:*)",
       "Bash(chmod:*)",
       "Bash(git reset:*)",
-      "Bash(php -r:*)"
+      "Bash(php -r:*)",
+      "Bash(php debug_matches.php:*)",
+      "Bash(php debug_pronostic.php:*)"
     ],
     "deny": [],
     "ask": []
