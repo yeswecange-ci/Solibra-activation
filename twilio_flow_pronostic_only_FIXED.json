@@ -1,0 +1,715 @@
+{
+  "description": "CAN 2025 - Flow Pronostics Uniquement (sans inscription) - FIXED",
+  "states": [
+    {
+      "name": "Trigger",
+      "type": "trigger",
+      "transitions": [
+        {
+          "event": "incomingMessage"
+        },
+        {
+          "event": "incomingCall"
+        },
+        {
+          "event": "incomingConversationMessage"
+        },
+        {
+          "event": "incomingRequest"
+        },
+        {
+          "next": "set_phone",
+          "event": "incomingParent"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 0,
+          "y": 0
+        }
+      }
+    },
+    {
+      "name": "set_phone",
+      "type": "set-variables",
+      "transitions": [
+        {
+          "next": "http_get_matchs",
+          "event": "next"
+        }
+      ],
+      "properties": {
+        "variables": [
+          {
+            "type": "string",
+            "value": "{{trigger.message.From}}",
+            "key": "phone_number"
+          }
+        ],
+        "offset": {
+          "x": 0,
+          "y": 150
+        }
+      }
+    },
+    {
+      "name": "http_get_matchs",
+      "type": "make-http-request",
+      "transitions": [
+        {
+          "next": "check_has_matchs",
+          "event": "success"
+        },
+        {
+          "next": "end_success",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 0,
+          "y": 300
+        },
+        "method": "GET",
+        "content_type": "application/x-www-form-urlencoded",
+        "add_twilio_auth": false,
+        "url": "https://can-wabracongo.ywcdigital.com/api/can/matches/formatted?limit=5"
+      }
+    },
+    {
+      "name": "check_has_matchs",
+      "type": "split-based-on",
+      "transitions": [
+        {
+          "next": "end_success",
+          "event": "noMatch"
+        },
+        {
+          "next": "msg_liste_matchs",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "Des matchs disponibles",
+              "arguments": [
+                "{{widgets.http_get_matchs.parsed.has_matches}}"
+              ],
+              "type": "equal_to",
+              "value": "true"
+            }
+          ]
+        }
+      ],
+      "properties": {
+        "input": "{{widgets.http_get_matchs.parsed.has_matches}}",
+        "offset": {
+          "x": 0,
+          "y": 550
+        }
+      }
+    },
+    {
+      "name": "msg_liste_matchs",
+      "type": "send-and-wait-for-reply",
+      "transitions": [
+        {
+          "next": "check_choix_match",
+          "event": "incomingMessage"
+        },
+        {
+          "next": "end_success",
+          "event": "timeout"
+        },
+        {
+          "next": "end_success",
+          "event": "deliveryFailure"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 0,
+          "y": 800
+        },
+        "from": "{{flow.channel.address}}",
+        "body": "{{widgets.http_get_matchs.parsed.message}}",
+        "timeout": "3600"
+      }
+    },
+    {
+      "name": "check_choix_match",
+      "type": "split-based-on",
+      "transitions": [
+        {
+          "next": "msg_choix_invalide",
+          "event": "noMatch"
+        },
+        {
+          "next": "set_match_1",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "Match 1",
+              "arguments": [
+                "{{widgets.msg_liste_matchs.inbound.Body}}"
+              ],
+              "type": "matches_any_of",
+              "value": "1"
+            }
+          ]
+        },
+        {
+          "next": "set_match_2",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "Match 2",
+              "arguments": [
+                "{{widgets.msg_liste_matchs.inbound.Body}}"
+              ],
+              "type": "matches_any_of",
+              "value": "2"
+            }
+          ]
+        },
+        {
+          "next": "set_match_3",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "Match 3",
+              "arguments": [
+                "{{widgets.msg_liste_matchs.inbound.Body}}"
+              ],
+              "type": "matches_any_of",
+              "value": "3"
+            }
+          ]
+        },
+        {
+          "next": "set_match_4",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "Match 4",
+              "arguments": [
+                "{{widgets.msg_liste_matchs.inbound.Body}}"
+              ],
+              "type": "matches_any_of",
+              "value": "4"
+            }
+          ]
+        },
+        {
+          "next": "set_match_5",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "Match 5",
+              "arguments": [
+                "{{widgets.msg_liste_matchs.inbound.Body}}"
+              ],
+              "type": "matches_any_of",
+              "value": "5"
+            }
+          ]
+        }
+      ],
+      "properties": {
+        "input": "{{widgets.msg_liste_matchs.inbound.Body}}",
+        "offset": {
+          "x": 0,
+          "y": 1050
+        }
+      }
+    },
+    {
+      "name": "set_match_1",
+      "type": "set-variables",
+      "transitions": [
+        {
+          "next": "msg_options_prono",
+          "event": "next"
+        }
+      ],
+      "properties": {
+        "variables": [
+          {
+            "type": "string",
+            "value": "{{widgets.http_get_matchs.parsed.matches[0].id}}",
+            "key": "selected_match_id"
+          },
+          {
+            "type": "string",
+            "value": "{{widgets.http_get_matchs.parsed.matches[0].team_a}}",
+            "key": "selected_team_a"
+          },
+          {
+            "type": "string",
+            "value": "{{widgets.http_get_matchs.parsed.matches[0].team_b}}",
+            "key": "selected_team_b"
+          }
+        ],
+        "offset": {
+          "x": -800,
+          "y": 1300
+        }
+      }
+    },
+    {
+      "name": "set_match_2",
+      "type": "set-variables",
+      "transitions": [
+        {
+          "next": "msg_options_prono",
+          "event": "next"
+        }
+      ],
+      "properties": {
+        "variables": [
+          {
+            "type": "string",
+            "value": "{{widgets.http_get_matchs.parsed.matches[1].id}}",
+            "key": "selected_match_id"
+          },
+          {
+            "type": "string",
+            "value": "{{widgets.http_get_matchs.parsed.matches[1].team_a}}",
+            "key": "selected_team_a"
+          },
+          {
+            "type": "string",
+            "value": "{{widgets.http_get_matchs.parsed.matches[1].team_b}}",
+            "key": "selected_team_b"
+          }
+        ],
+        "offset": {
+          "x": -400,
+          "y": 1300
+        }
+      }
+    },
+    {
+      "name": "set_match_3",
+      "type": "set-variables",
+      "transitions": [
+        {
+          "next": "msg_options_prono",
+          "event": "next"
+        }
+      ],
+      "properties": {
+        "variables": [
+          {
+            "type": "string",
+            "value": "{{widgets.http_get_matchs.parsed.matches[2].id}}",
+            "key": "selected_match_id"
+          },
+          {
+            "type": "string",
+            "value": "{{widgets.http_get_matchs.parsed.matches[2].team_a}}",
+            "key": "selected_team_a"
+          },
+          {
+            "type": "string",
+            "value": "{{widgets.http_get_matchs.parsed.matches[2].team_b}}",
+            "key": "selected_team_b"
+          }
+        ],
+        "offset": {
+          "x": 0,
+          "y": 1300
+        }
+      }
+    },
+    {
+      "name": "set_match_4",
+      "type": "set-variables",
+      "transitions": [
+        {
+          "next": "msg_options_prono",
+          "event": "next"
+        }
+      ],
+      "properties": {
+        "variables": [
+          {
+            "type": "string",
+            "value": "{{widgets.http_get_matchs.parsed.matches[3].id}}",
+            "key": "selected_match_id"
+          },
+          {
+            "type": "string",
+            "value": "{{widgets.http_get_matchs.parsed.matches[3].team_a}}",
+            "key": "selected_team_a"
+          },
+          {
+            "type": "string",
+            "value": "{{widgets.http_get_matchs.parsed.matches[3].team_b}}",
+            "key": "selected_team_b"
+          }
+        ],
+        "offset": {
+          "x": 400,
+          "y": 1300
+        }
+      }
+    },
+    {
+      "name": "set_match_5",
+      "type": "set-variables",
+      "transitions": [
+        {
+          "next": "msg_options_prono",
+          "event": "next"
+        }
+      ],
+      "properties": {
+        "variables": [
+          {
+            "type": "string",
+            "value": "{{widgets.http_get_matchs.parsed.matches[4].id}}",
+            "key": "selected_match_id"
+          },
+          {
+            "type": "string",
+            "value": "{{widgets.http_get_matchs.parsed.matches[4].team_a}}",
+            "key": "selected_team_a"
+          },
+          {
+            "type": "string",
+            "value": "{{widgets.http_get_matchs.parsed.matches[4].team_b}}",
+            "key": "selected_team_b"
+          }
+        ],
+        "offset": {
+          "x": 800,
+          "y": 1300
+        }
+      }
+    },
+    {
+      "name": "msg_choix_invalide",
+      "type": "send-message",
+      "transitions": [
+        {
+          "next": "end_success",
+          "event": "sent"
+        },
+        {
+          "next": "end_success",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 1200,
+          "y": 1300
+        },
+        "from": "{{flow.channel.address}}",
+        "to": "{{contact.channel.address}}",
+        "body": "Choix invalide ! On se retrouve bientôt pour les prochains matchs !"
+      }
+    },
+    {
+      "name": "msg_options_prono",
+      "type": "send-and-wait-for-reply",
+      "transitions": [
+        {
+          "next": "check_choix_prono",
+          "event": "incomingMessage"
+        },
+        {
+          "next": "end_success",
+          "event": "timeout"
+        },
+        {
+          "next": "end_success",
+          "event": "deliveryFailure"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 0,
+          "y": 1550
+        },
+        "from": "{{flow.channel.address}}",
+        "body": "🏆 TON PRONOSTIC DU MATCH ⚽\n 🔥 {{flow.variables.selected_team_a}} vs {{flow.variables.selected_team_b}} 🔥\n👉 Qui va gagner selon toi ?\n 1️⃣ Victoire {{flow.variables.selected_team_a}}\n 2️⃣ Victoire {{flow.variables.selected_team_b}}\n 3️⃣ 🤝 Match nul\n📩 Réponds simplement par 1, 2 ou 3 et valide ton pronostic !",
+        "timeout": "3600"
+      }
+    },
+    {
+      "name": "check_choix_prono",
+      "type": "split-based-on",
+      "transitions": [
+        {
+          "next": "msg_prono_invalide",
+          "event": "noMatch"
+        },
+        {
+          "next": "set_prono_team_a",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "Victoire équipe A",
+              "arguments": [
+                "{{widgets.msg_options_prono.inbound.Body}}"
+              ],
+              "type": "equal_to",
+              "value": "1"
+            }
+          ]
+        },
+        {
+          "next": "set_prono_team_b",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "Victoire équipe B",
+              "arguments": [
+                "{{widgets.msg_options_prono.inbound.Body}}"
+              ],
+              "type": "equal_to",
+              "value": "2"
+            }
+          ]
+        },
+        {
+          "next": "set_prono_draw",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "Match nul",
+              "arguments": [
+                "{{widgets.msg_options_prono.inbound.Body}}"
+              ],
+              "type": "equal_to",
+              "value": "3"
+            }
+          ]
+        }
+      ],
+      "properties": {
+        "input": "{{widgets.msg_options_prono.inbound.Body}}",
+        "offset": {
+          "x": 0,
+          "y": 1800
+        }
+      }
+    },
+    {
+      "name": "set_prono_team_a",
+      "type": "set-variables",
+      "transitions": [
+        {
+          "next": "http_save_prono",
+          "event": "next"
+        }
+      ],
+      "properties": {
+        "variables": [
+          {
+            "type": "string",
+            "value": "team_a_win",
+            "key": "prediction_type"
+          }
+        ],
+        "offset": {
+          "x": -400,
+          "y": 2050
+        }
+      }
+    },
+    {
+      "name": "set_prono_team_b",
+      "type": "set-variables",
+      "transitions": [
+        {
+          "next": "http_save_prono",
+          "event": "next"
+        }
+      ],
+      "properties": {
+        "variables": [
+          {
+            "type": "string",
+            "value": "team_b_win",
+            "key": "prediction_type"
+          }
+        ],
+        "offset": {
+          "x": 0,
+          "y": 2050
+        }
+      }
+    },
+    {
+      "name": "set_prono_draw",
+      "type": "set-variables",
+      "transitions": [
+        {
+          "next": "http_save_prono",
+          "event": "next"
+        }
+      ],
+      "properties": {
+        "variables": [
+          {
+            "type": "string",
+            "value": "draw",
+            "key": "prediction_type"
+          }
+        ],
+        "offset": {
+          "x": 400,
+          "y": 2050
+        }
+      }
+    },
+    {
+      "name": "msg_prono_invalide",
+      "type": "send-message",
+      "transitions": [
+        {
+          "next": "end_success",
+          "event": "sent"
+        },
+        {
+          "next": "end_success",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 800,
+          "y": 2050
+        },
+        "from": "{{flow.channel.address}}",
+        "to": "{{contact.channel.address}}",
+        "body": "Choix invalide ! On se retrouve bientôt !"
+      }
+    },
+    {
+      "name": "http_save_prono",
+      "type": "make-http-request",
+      "transitions": [
+        {
+          "next": "check_prono_success",
+          "event": "success"
+        },
+        {
+          "next": "msg_erreur_prono",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 0,
+          "y": 2300
+        },
+        "method": "POST",
+        "content_type": "application/json",
+        "add_twilio_auth": false,
+        "body": "{\"phone\":\"{{flow.variables.phone_number}}\",\"match_id\":{{flow.variables.selected_match_id}},\"prediction_type\":\"{{flow.variables.prediction_type}}\"}",
+        "url": "https://can-wabracongo.ywcdigital.com/api/can/pronostic"
+      }
+    },
+    {
+      "name": "check_prono_success",
+      "type": "split-based-on",
+      "transitions": [
+        {
+          "next": "msg_erreur_prono",
+          "event": "noMatch"
+        },
+        {
+          "next": "msg_confirmation_prono",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "API Success",
+              "arguments": [
+                "{{widgets.http_save_prono.parsed.success}}"
+              ],
+              "type": "equal_to",
+              "value": "true"
+            }
+          ]
+        }
+      ],
+      "properties": {
+        "input": "{{widgets.http_save_prono.parsed.success}}",
+        "offset": {
+          "x": 0,
+          "y": 2550
+        }
+      }
+    },
+    {
+      "name": "msg_confirmation_prono",
+      "type": "send-message",
+      "transitions": [
+        {
+          "next": "end_success",
+          "event": "sent"
+        },
+        {
+          "next": "end_success",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": -200,
+          "y": 2800
+        },
+        "from": "{{flow.channel.address}}",
+        "to": "{{contact.channel.address}}",
+        "body": "{{widgets.http_save_prono.parsed.message}}"
+      }
+    },
+    {
+      "name": "msg_erreur_prono",
+      "type": "send-message",
+      "transitions": [
+        {
+          "next": "end_success",
+          "event": "sent"
+        },
+        {
+          "next": "end_success",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 400,
+          "y": 2550
+        },
+        "from": "{{flow.channel.address}}",
+        "to": "{{contact.channel.address}}",
+        "body": "❌ Erreur: {{widgets.http_save_prono.parsed.message}}"
+      }
+    },
+    {
+      "name": "end_success",
+      "type": "set-variables",
+      "transitions": [],
+      "properties": {
+        "variables": [
+          {
+            "type": "string",
+            "value": "PRONOSTIC_COMPLETE",
+            "key": "flow_status"
+          }
+        ],
+        "offset": {
+          "x": 0,
+          "y": 3050
+        }
+      }
+    }
+  ],
+  "initial_state": "Trigger",
+  "flags": {
+    "allow_concurrent_calls": true
+  }
+}

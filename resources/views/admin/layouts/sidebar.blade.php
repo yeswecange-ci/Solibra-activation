@@ -66,7 +66,7 @@
         </a>
 
         <!-- Lots -->
-        {{-- <a href="{{ route('admin.prizes.index') }}"
+        <a href="{{ route('admin.prizes.index') }}"
             class="flex items-center px-4 py-3 text-gray-300 hover:bg-gray-800 hover:text-white transition-all rounded-lg group {{ request()->routeIs('admin.prizes.*') ? 'bg-gradient-to-r from-yellow-600 to-yellow-700 text-white shadow-lg' : '' }}">
             <svg class="w-5 h-5 mr-3 {{ request()->routeIs('admin.prizes.*') ? 'text-white' : 'text-gray-400 group-hover:text-yellow-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -74,7 +74,7 @@
                 </path>
             </svg>
             <span class="font-medium">Lots</span>
-        </a> --}}
+        </a>
 
         <!-- Pronostics -->
         <a href="{{ route('admin.pronostics.index') }}"
@@ -88,7 +88,7 @@
         </a>
 
         <!-- Classement -->
-        {{-- <a href="{{ route('admin.leaderboard') }}"
+        <a href="{{ route('admin.leaderboard') }}"
             class="flex items-center px-4 py-3 text-gray-300 hover:bg-gray-800 hover:text-white transition-all rounded-lg group {{ request()->routeIs('admin.leaderboard*') ? 'bg-gradient-to-r from-pink-600 to-pink-700 text-white shadow-lg' : '' }}">
             <svg class="w-5 h-5 mr-3 {{ request()->routeIs('admin.leaderboard*') ? 'text-white' : 'text-gray-400 group-hover:text-pink-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -96,7 +96,7 @@
                 </path>
             </svg>
             <span class="font-medium">Classement</span>
-        </a> --}}
+        </a>
 
         <!-- QR Codes -->
         <a href="{{ route('admin.qrcodes.index') }}"
