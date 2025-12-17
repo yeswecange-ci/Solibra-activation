@@ -4,7 +4,7 @@
             <div class="text-4xl">🦁</div>
             <div>
                 <h1 class="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">FOOT 2025</h1>
-                <p class="text-gray-400 text-xs">Kinshasa</p>
+                <p class="text-gray-400 text-xs">Solibra</p>
             </div>
         </div>
     </div>
