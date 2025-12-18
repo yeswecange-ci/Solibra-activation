@@ -22,31 +22,44 @@ class TwilioStudioController extends Controller
     {
         $validated = $request->validate([
             'phone'         => 'required|string',
-            'source_type'   => 'required|string',
-            'source_detail' => 'required|string',
+            'source_type'   => 'nullable|string',
+            'source_detail' => 'nullable|string',
             'timestamp'     => 'nullable|string',
             'status'        => 'nullable|string',
         ]);
 
         $phone = $this->formatPhone($validated['phone']);
 
+        // Préparer les données de session
+        $sessionData = [
+            'scan_timestamp' => $validated['timestamp'] ?? now()->toDateTimeString(),
+        ];
+
+        // Ajouter source seulement si fournie
+        if (!empty($validated['source_type'])) {
+            $sessionData['source_type'] = $validated['source_type'];
+        }
+        if (!empty($validated['source_detail'])) {
+            $sessionData['source_detail'] = $validated['source_detail'];
+        }
+
         // Créer ou mettre à jour la session de conversation
         $session = ConversationSession::updateOrCreate(
             ['phone' => $phone],
             [
                 'state'         => ConversationSession::STATE_SCAN,
-                'data'          => [
-                    'source_type'    => $validated['source_type'],
-                    'source_detail'  => $validated['source_detail'],
-                    'scan_timestamp' => $validated['timestamp'] ?? now()->toDateTimeString(),
-                ],
+                'data'          => $sessionData,
                 'last_activity' => now(),
             ]
         );
 
+        $sourceInfo = !empty($validated['source_type'])
+            ? $validated['source_type'] . ' / ' . ($validated['source_detail'] ?? 'N/A')
+            : 'Direct (sans source)';
+
         Log::info('Twilio Studio - Scan logged', [
             'phone'  => $phone,
-            'source' => $validated['source_type'] . ' / ' . $validated['source_detail'],
+            'source' => $sourceInfo,
         ]);
 
         return response()->json([
@@ -96,8 +109,8 @@ class TwilioStudioController extends Controller
         $validated = $request->validate([
             'phone'         => 'required|string',
             'name'          => 'required|string|min:2',
-            'source_type'   => 'required|string',
-            'source_detail' => 'required|string',
+            'source_type'   => 'nullable|string',
+            'source_detail' => 'nullable|string',
             'status'        => 'nullable|string',
             'timestamp'     => 'nullable|string',
         ]);
@@ -109,14 +122,22 @@ class TwilioStudioController extends Controller
 
         if ($user) {
             // Utilisateur déjà inscrit - mise à jour
-            $user->update([
+            $updateData = [
                 'name'                => ucwords(strtolower($validated['name'])),
-                'source_type'         => $validated['source_type'],
-                'source_detail'       => $validated['source_detail'],
                 'registration_status' => 'INSCRIT',
                 'opted_in_at'         => now(),
                 'is_active'           => true,
-            ]);
+            ];
+
+            // Ajouter source seulement si fournie
+            if (!empty($validated['source_type'])) {
+                $updateData['source_type'] = $validated['source_type'];
+            }
+            if (!empty($validated['source_detail'])) {
+                $updateData['source_detail'] = $validated['source_detail'];
+            }
+
+            $user->update($updateData);
 
             Log::info('Twilio Studio - User updated', [
                 'user_id' => $user->id,
@@ -124,7 +145,15 @@ class TwilioStudioController extends Controller
             ]);
         } else {
             // Nouvel utilisateur - extraire le village depuis la source
-            $villageId = $this->extractVillageFromSource($validated['source_type'], $validated['source_detail']);
+            $villageId = null;
+
+            // Essayer d'extraire le village seulement si source_type est fourni
+            if (!empty($validated['source_type'])) {
+                $villageId = $this->extractVillageFromSource(
+                    $validated['source_type'],
+                    $validated['source_detail'] ?? ''
+                );
+            }
 
             if (! $villageId) {
                 // Si pas de village trouvé, utiliser le premier village actif
@@ -139,23 +168,35 @@ class TwilioStudioController extends Controller
                 ], 400);
             }
 
-            $user = User::create([
+            $userData = [
                 'name'                => ucwords(strtolower($validated['name'])),
                 'phone'               => $phone,
                 'village_id'          => $villageId,
-                'source_type'         => $validated['source_type'],
-                'source_detail'       => $validated['source_detail'],
                 'scan_timestamp'      => $validated['timestamp'] ?? now(),
                 'registration_status' => 'INSCRIT',
                 'opted_in_at'         => now(),
                 'is_active'           => true,
-            ]);
+            ];
+
+            // Ajouter source seulement si fournie
+            if (!empty($validated['source_type'])) {
+                $userData['source_type'] = $validated['source_type'];
+            }
+            if (!empty($validated['source_detail'])) {
+                $userData['source_detail'] = $validated['source_detail'];
+            }
+
+            $user = User::create($userData);
+
+            $sourceInfo = !empty($validated['source_type'])
+                ? $validated['source_type'] . ' / ' . ($validated['source_detail'] ?? 'N/A')
+                : 'Direct (sans source)';
 
             Log::info('Twilio Studio - New user registered', [
                 'user_id'    => $user->id,
                 'phone'      => $phone,
                 'village_id' => $villageId,
-                'source'     => $validated['source_type'] . ' / ' . $validated['source_detail'],
+                'source'     => $sourceInfo,
             ]);
         }
 

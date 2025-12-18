@@ -124,15 +124,25 @@ class AnalyticsController extends Controller
 
             fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
 
-            fputcsv($file, ['Utilisateur', 'Match', 'Pronostic', 'Score réel', 'Gagnant', 'Date']);
+            fputcsv($file, ['Utilisateur', 'Match', 'Pronostic', 'Score réel', 'Résultat', 'Points gagnés', 'Date']);
 
             foreach ($pronostics as $prono) {
+                $result = 'En attente';
+                if ($prono->match->status === 'finished') {
+                    if ($prono->is_winner === true) {
+                        $result = $prono->points_won == 10 ? 'Score exact' : 'Bon résultat';
+                    } else {
+                        $result = 'Perdu';
+                    }
+                }
+
                 fputcsv($file, [
                     $prono->user->name,
                     $prono->match->team_a . ' vs ' . $prono->match->team_b,
                     $prono->prediction_text, // Utilise l'attribut qui gère les deux modes
                     ($prono->match->score_a ?? '-') . ' - ' . ($prono->match->score_b ?? '-'),
-                    $prono->is_winner ? 'Oui' : 'Non',
+                    $result,
+                    $prono->points_won ?? 0,
                     $prono->created_at->format('d/m/Y H:i'),
                 ]);
             }
