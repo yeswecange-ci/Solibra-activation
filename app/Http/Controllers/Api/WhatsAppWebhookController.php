@@ -292,15 +292,31 @@ class WhatsAppWebhookController extends Controller
             ->first();
 
         if ($existingProno) {
-            $message = "⚠️ Tu as déjà un pronostic pour ce match :\n\n";
-            $message .= "⚽ {$match->team_a} vs {$match->team_b}\n";
-            $message .= "📊 Ton prono: {$existingProno->predicted_score_a} - {$existingProno->predicted_score_b}\n\n";
-            $message .= "💡 Tu vas le modifier.\n\n";
+            // BLOQUER l'utilisateur - impossible de modifier
+            $message = "🚫 *PRONOSTIC DÉJÀ ENREGISTRÉ*\n\n";
+            $message .= "⚽ {$match->team_a} vs {$match->team_b}\n\n";
+            $message .= "📊 Ton pronostic actuel :\n";
+            $message .= "   *{$existingProno->predicted_score_a} - {$existingProno->predicted_score_b}*\n\n";
+            $message .= "📅 Placé le : " . $existingProno->created_at->format('d/m/Y à H:i') . "\n\n";
+            $message .= "❌ *Impossible de modifier ton pronostic.*\n\n";
+            $message .= "💡 Envoie MENU pour voir d'autres options.";
+
+            $this->whatsapp->sendMessage($session->phone, $message);
+            
+            // Réinitialiser la session
+            $session->setState(ConversationSession::STATE_REGISTERED);
+            
+            Log::info('User tried to modify existing pronostic', [
+                'user_id' => $user->id,
+                'match_id' => $match->id,
+                'existing_pronostic_id' => $existingProno->id,
+            ]);
+
+            return;
         }
 
-        // Demander le score de l'équipe A
-        $message = ($existingProno ? $message : '');
-        $message .= "🎯 *PRONOSTIC*\n\n";
+        // Pas de pronostic existant - continuer le flow
+        $message = "🎯 *PRONOSTIC*\n\n";
         $message .= "⚽ {$match->team_a} vs {$match->team_b}\n";
         $message .= "📅 " . $match->match_date->format('d/m à H:i') . "\n\n";
         $message .= "Quel sera le score de *{$match->team_a}* ?\n";
@@ -371,17 +387,13 @@ class WhatsAppWebhookController extends Controller
         }
 
         try {
-            // Créer ou mettre à jour le pronostic
-            $pronostic = \App\Models\Pronostic::updateOrCreate(
-                [
-                    'user_id' => $user->id,
-                    'match_id' => $match->id,
-                ],
-                [
-                    'predicted_score_a' => $scoreA,
-                    'predicted_score_b' => $scoreB,
-                ]
-            );
+            // Créer le pronostic (on utilise create au lieu de updateOrCreate car on a déjà vérifié l'existence)
+            $pronostic = \App\Models\Pronostic::create([
+                'user_id' => $user->id,
+                'match_id' => $match->id,
+                'predicted_score_a' => $scoreA,
+                'predicted_score_b' => $scoreB,
+            ]);
 
             // Message de confirmation
             $message = "✅ *PRONOSTIC ENREGISTRÉ !*\n\n";
@@ -389,7 +401,7 @@ class WhatsAppWebhookController extends Controller
             $message .= "📊 Ton pronostic: *{$scoreA} - {$scoreB}*\n";
             $message .= "📅 Match: " . $match->match_date->format('d/m à H:i') . "\n\n";
             $message .= "🍀 Bonne chance !\n\n";
-            // $message .= "💡 Envoie MENU pour d'autres options";
+            $message .= "💡 Envoie MENU pour d'autres options";
 
             $this->whatsapp->sendMessage($session->phone, $message);
 
@@ -439,7 +451,7 @@ class WhatsAppWebhookController extends Controller
             $message .= "\n";
         }
 
-        $message .= "💡 Saisis le chiffres qui correspond à ton match pour faire un pronostic !";
+        $message .= "💡 Envoie PRONOSTIC pour faire un pronostic !";
 
         $this->whatsapp->sendMessage($phone, $message);
     }
@@ -456,7 +468,12 @@ class WhatsAppWebhookController extends Controller
             ->get();
 
         if ($matches->isEmpty()) {
-            $this->whatsapp->sendMessage($session->phone, "❌ Aucun match disponible pour pronostics actuellement.");
+            $message = "❌ *AUCUN MATCH DISPONIBLE*\n\n";
+            $message .= "Il n'y a aucun match ouvert pour les pronostics en ce moment.\n\n";
+            $message .= "📅 Les pronostics seront disponibles dès qu'un nouveau match sera programmé.\n\n";
+            $message .= "💡 Envoie MENU pour voir les autres options.";
+            
+            $this->whatsapp->sendMessage($session->phone, $message);
             return;
         }
 
@@ -496,71 +513,23 @@ class WhatsAppWebhookController extends Controller
             return;
         }
 
-        // Calculer les statistiques globales de l'utilisateur
-        $totalPronostics = $user->pronostics()->count();
-        $totalWins = $user->pronostics()->where('is_winner', true)->count();
-        $totalPoints = $user->pronostics()->sum('points_won');
-        $winRate = $totalPronostics > 0 ? round(($totalWins / $totalPronostics) * 100, 1) : 0;
-
-        // En-tête avec statistiques
         $message = "📊 *MES PRONOSTICS*\n\n";
-        $message .= "🏆 *Mes statistiques*\n";
-        $message .= "Points totaux: *{$totalPoints} pts*\n";
-        $message .= "Pronostics: {$totalPronostics} | Gagnés: {$totalWins} ({$winRate}%)\n";
-        $message .= "\n" . str_repeat("─", 35) . "\n\n";
-
-        // Liste des 10 derniers pronostics
-        $message .= "📋 *Derniers pronostics:*\n\n";
 
         foreach ($pronostics as $prono) {
             $match = $prono->match;
             $message .= "⚽ {$match->team_a} vs {$match->team_b}\n";
-
-            // Afficher le pronostic selon le type
-            if ($prono->prediction_type) {
-                $pronoText = $this->formatPredictionType($prono->prediction_type, $match);
-                $message .= "   Mon prono: {$pronoText}\n";
-            } else {
-                $message .= "   Mon prono: {$prono->predicted_score_a} - {$prono->predicted_score_b}\n";
-            }
+            $message .= "   Mon prono: {$prono->predicted_score_a} - {$prono->predicted_score_b}\n";
 
             if ($match->status === 'finished') {
                 $message .= "   Résultat: {$match->score_a} - {$match->score_b}\n";
-
-                if ($prono->is_winner) {
-                    $points = $prono->points_won ?? 0;
-                    if ($points == 10) {
-                        $message .= "   🎯 SCORE EXACT ! +{$points} pts\n";
-                    } else {
-                        $message .= "   ✅ BON RÉSULTAT ! +{$points} pts\n";
-                    }
-                } else {
-                    $message .= "   ❌ Perdu (0 pt)\n";
-                }
+                $message .= $prono->is_winner ? "   ✅ GAGNÉ !\n" : "   ❌ Perdu\n";
             } else {
                 $message .= "   ⏳ En attente\n";
             }
             $message .= "\n";
         }
 
-        if ($totalPronostics > 10) {
-            $message .= "\n💡 Affichage des 10 derniers pronostics sur {$totalPronostics}\n";
-        }
-
         $this->whatsapp->sendMessage($phone, $message);
-    }
-
-    /**
-     * Formater le type de prédiction en texte lisible
-     */
-    protected function formatPredictionType(string $type, $match): string
-    {
-        return match($type) {
-            'team_a_win' => "Victoire {$match->team_a}",
-            'team_b_win' => "Victoire {$match->team_b}",
-            'draw' => "Match nul",
-            default => "Pronostic inconnu",
-        };
     }
 
     /**
@@ -568,129 +537,13 @@ class WhatsAppWebhookController extends Controller
      */
     protected function sendLeaderboard(string $phone)
     {
-        $user = User::where('phone', $phone)->first();
-
-        // Récupérer le top 10 général
-        $topUsers = User::select('users.*')
-            ->selectRaw('COALESCE(SUM(pronostics.points_won), 0) as total_points')
-            ->selectRaw('COUNT(pronostics.id) as total_pronostics')
-            ->selectRaw('SUM(CASE WHEN pronostics.is_winner = 1 THEN 1 ELSE 0 END) as total_wins')
-            ->leftJoin('pronostics', 'users.id', '=', 'pronostics.user_id')
-            ->where('users.is_active', true)
-            ->groupBy('users.id')
-            ->orderByDesc('total_points')
-            ->orderByDesc('total_wins')
-            ->limit(10)
-            ->get();
-
-        // Vérifier s'il y a des joueurs avec des points
-        if ($topUsers->isEmpty() || $topUsers->first()->total_points == 0) {
-            $message = "🏆 *CLASSEMENT*\n\n";
-            $message .= "📊 Aucun classement pour le moment.\n\n";
-            $message .= "Fais des pronostics pour apparaître dans le classement !\n\n";
-            $message .= "💡 Envoie PRONOSTIC pour commencer.";
-
-            $this->whatsapp->sendMessage($phone, $message);
-            return;
-        }
-
-        $message = "🏆 *CLASSEMENT GÉNÉRAL*\n\n";
-        $message .= "🔝 *Top 10 joueurs*\n";
-        $message .= str_repeat("─", 35) . "\n\n";
-
-        $rank = 1;
-        $userRank = null;
-        $userInTop10 = false;
-
-        foreach ($topUsers as $topUser) {
-            if ($topUser->total_points == 0) continue;
-
-            $winRate = $topUser->total_pronostics > 0
-                ? round(($topUser->total_wins / $topUser->total_pronostics) * 100)
-                : 0;
-
-            // Badges selon le rang
-            $badge = match($rank) {
-                1 => "🥇",
-                2 => "🥈",
-                3 => "🥉",
-                default => "{$rank}.",
-            };
-
-            $isCurrentUser = $user && $topUser->id == $user->id;
-            if ($isCurrentUser) {
-                $userInTop10 = true;
-                $userRank = $rank;
-            }
-
-            $name = $isCurrentUser ? "*{$topUser->name}* (toi)" : $topUser->name;
-
-            $message .= "{$badge} {$name}\n";
-            $message .= "     💰 {$topUser->total_points} pts | {$topUser->total_wins}/{$topUser->total_pronostics} ({$winRate}%)\n\n";
-
-            $rank++;
-        }
-
-        // Si l'utilisateur n'est pas dans le top 10, afficher sa position
-        if ($user && !$userInTop10) {
-            $allUsers = User::select('users.*')
-                ->selectRaw('COALESCE(SUM(pronostics.points_won), 0) as total_points')
-                ->selectRaw('COUNT(pronostics.id) as total_pronostics')
-                ->selectRaw('SUM(CASE WHEN pronostics.is_winner = 1 THEN 1 ELSE 0 END) as total_wins')
-                ->leftJoin('pronostics', 'users.id', '=', 'pronostics.user_id')
-                ->where('users.is_active', true)
-                ->groupBy('users.id')
-                ->orderByDesc('total_points')
-                ->orderByDesc('total_wins')
-                ->get();
-
-            $userPosition = $allUsers->search(function($u) use ($user) {
-                return $u->id == $user->id;
-            });
-
-            if ($userPosition !== false) {
-                $userPosition++; // +1 car l'index commence à 0
-                $userData = $allUsers[$userPosition - 1];
-
-                $message .= str_repeat("─", 35) . "\n\n";
-                $message .= "📍 *Ta position*\n";
-                $message .= "{$userPosition}. {$user->name}\n";
-                $message .= "     💰 {$userData->total_points} pts | {$userData->total_wins}/{$userData->total_pronostics}\n\n";
-            }
-        }
-
-        // Classement du village de l'utilisateur
-        if ($user && $user->village_id) {
-            $villageTop = User::select('users.*')
-                ->selectRaw('COALESCE(SUM(pronostics.points_won), 0) as total_points')
-                ->selectRaw('COUNT(pronostics.id) as total_pronostics')
-                ->selectRaw('SUM(CASE WHEN pronostics.is_winner = 1 THEN 1 ELSE 0 END) as total_wins')
-                ->leftJoin('pronostics', 'users.id', '=', 'pronostics.user_id')
-                ->where('users.is_active', true)
-                ->where('users.village_id', $user->village_id)
-                ->groupBy('users.id')
-                ->having('total_points', '>', 0)
-                ->orderByDesc('total_points')
-                ->orderByDesc('total_wins')
-                ->limit(5)
-                ->get();
-
-            if ($villageTop->isNotEmpty()) {
-                $message .= str_repeat("─", 35) . "\n\n";
-                $message .= "🏘️ *Top 5 de {$user->village->name}*\n\n";
-
-                $villageRank = 1;
-                foreach ($villageTop as $villageUser) {
-                    $isCurrentUser = $villageUser->id == $user->id;
-                    $name = $isCurrentUser ? "*{$villageUser->name}* (toi)" : $villageUser->name;
-
-                    $message .= "{$villageRank}. {$name} - {$villageUser->total_points} pts\n";
-                    $villageRank++;
-                }
-            }
-        }
-
-        $message .= "\n💡 Continue à faire des pronostics pour grimper dans le classement !";
+        $message = "🏆 *CLASSEMENT*\n\n";
+        $message .= "📊 Cette fonctionnalité arrive bientôt !\n\n";
+        $message .= "Tu pourras voir :\n";
+        $message .= "• Le top 10 général\n";
+        $message .= "• Le classement de ton village\n";
+        $message .= "• Ta position\n\n";
+        $message .= "En attendant, envoie MENU pour les autres options.";
 
         $this->whatsapp->sendMessage($phone, $message);
     }

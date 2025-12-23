@@ -34,6 +34,15 @@
         </div>
     @endif
 
+    @if(session('error'))
+        <div class="bg-gradient-to-r from-red-50 to-rose-50 border-l-4 border-red-500 text-red-900 px-6 py-4 rounded-lg shadow-sm flex items-center" x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 5000)">
+            <svg class="w-6 h-6 mr-3 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <span class="font-medium">{{ session('error') }}</span>
+        </div>
+    @endif
+
     <!-- Table des matchs -->
     <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100">
         <div class="overflow-x-auto">
@@ -90,12 +99,32 @@
                                 @endif
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-center">
-                                <span class="inline-flex items-center px-3 py-1 text-sm font-bold rounded-full bg-purple-100 text-purple-800">
-                                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
-                                    </svg>
-                                    {{ $match->pronostics_count }}
-                                </span>
+                                @if($match->pronostics_count > 0)
+                                    <div class="flex flex-col items-center space-y-1">
+                                        <span class="inline-flex items-center px-3 py-1 text-sm font-bold rounded-full bg-purple-100 text-purple-800">
+                                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                                            </svg>
+                                            {{ $match->pronostics_count }}
+                                        </span>
+                                        
+                                        @php
+                                            $evaluatedCount = $match->pronostics->whereNotNull('is_winner')->count();
+                                        @endphp
+                                        
+                                        @if($match->status === 'finished' && $evaluatedCount > 0)
+                                            <span class="text-xs text-green-600 font-semibold">
+                                                ✅ {{ $evaluatedCount }} évalué(s)
+                                            </span>
+                                        @elseif($match->status === 'finished' && $match->score_a !== null && $match->score_b !== null)
+                                            <span class="text-xs text-orange-600 font-semibold">
+                                                ⏳ Non évalué
+                                            </span>
+                                        @endif
+                                    </div>
+                                @else
+                                    <span class="text-sm text-gray-400">-</span>
+                                @endif
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-center">
                                 @if($match->status === 'scheduled')
@@ -121,6 +150,21 @@
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                 <div class="flex items-center justify-end space-x-2">
+                                    <!-- ✅ NOUVEAU : Bouton d'évaluation rapide -->
+                                    @if($match->status === 'finished' && $match->score_a !== null && $match->score_b !== null && $match->pronostics_count > 0)
+                                        <form method="POST" action="{{ route('admin.matches.evaluate', $match) }}" class="inline">
+                                            @csrf
+                                            <button type="submit" 
+                                                    class="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors" 
+                                                    title="Évaluer les pronostics"
+                                                    onclick="return confirm('Évaluer les {{ $match->pronostics_count }} pronostic(s) de ce match ?');">
+                                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+                                                </svg>
+                                            </button>
+                                        </form>
+                                    @endif
+                                    
                                     <a href="{{ route('admin.matches.show', $match) }}" class="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Voir">
                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
