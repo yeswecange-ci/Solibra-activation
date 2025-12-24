@@ -25,18 +25,29 @@ class UserController extends Controller
             });
         }
 
+        // Filtre par boisson (seulement si la colonne existe)
         if ($request->has('boisson_preferee') && $request->boisson_preferee != '') {
-            $query->where('boisson_preferee', $request->boisson_preferee);
+            try {
+                $query->where('boisson_preferee', $request->boisson_preferee);
+            } catch (\Exception $e) {
+                // Ignorer si la colonne n'existe pas encore
+            }
         }
 
         $users = $query->orderBy('created_at', 'desc')->paginate(15);
         $villages = Village::where('is_active', true)->get();
 
         // Récupérer la liste des boissons préférées distinctes
-        $boissons = User::whereNotNull('boisson_preferee')
-            ->distinct()
-            ->pluck('boisson_preferee')
-            ->sort();
+        // Vérifier si la colonne existe avant de faire la requête
+        try {
+            $boissons = User::whereNotNull('boisson_preferee')
+                ->distinct()
+                ->pluck('boisson_preferee')
+                ->sort();
+        } catch (\Exception $e) {
+            // Si la colonne n'existe pas encore (migration non exécutée), retourner une collection vide
+            $boissons = collect([]);
+        }
 
         return view('admin.users.index', compact('users', 'villages', 'boissons'));
     }

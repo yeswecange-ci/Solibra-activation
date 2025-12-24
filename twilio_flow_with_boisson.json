@@ -164,11 +164,28 @@
         {"next": "msg_demande_boisson_manquante", "event": "match", "conditions": [
           {"friendly_name": "Pas de boisson", "arguments": ["{{widgets.http_check_user.parsed.has_boisson_preferee}}"], "type": "equal_to", "value": "false"}
         ]},
+        {"next": "msg_bienvenue_avec_boisson", "event": "match", "conditions": [
+          {"friendly_name": "A une boisson", "arguments": ["{{widgets.http_check_user.parsed.has_boisson_preferee}}"], "type": "equal_to", "value": "true"}
+        ]},
         {"next": "http_check_pronostics", "event": "noMatch"}
       ],
       "properties": {
         "input": "{{widgets.http_check_user.parsed.has_boisson_preferee}}",
         "offset": {"x": 300, "y": 920}
+      }
+    },
+    {
+      "name": "msg_bienvenue_avec_boisson",
+      "type": "send-message",
+      "transitions": [
+        {"next": "http_check_pronostics", "event": "sent"},
+        {"next": "http_check_pronostics", "event": "failed"}
+      ],
+      "properties": {
+        "offset": {"x": 600, "y": 1150},
+        "from": "{{flow.channel.address}}",
+        "to": "{{contact.channel.address}}",
+        "body": "👋 Salut {{widgets.http_check_user.parsed.name}} !\n\n✅ Tu es déjà inscrit(e) à ⚽ BABIFOOT CITY by Solibra 2025 !\n\n🍹 Ta boisson préférée : {{widgets.http_check_user.parsed.boisson_preferee}}\n\n🔔 Prépare-toi à jouer et à gagner !\n\n#BabiFootCity"
       }
     },
     {
