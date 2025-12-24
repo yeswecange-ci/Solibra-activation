@@ -25,10 +25,20 @@ class UserController extends Controller
             });
         }
 
+        if ($request->has('boisson_preferee') && $request->boisson_preferee != '') {
+            $query->where('boisson_preferee', $request->boisson_preferee);
+        }
+
         $users = $query->orderBy('created_at', 'desc')->paginate(15);
         $villages = Village::where('is_active', true)->get();
 
-        return view('admin.users.index', compact('users', 'villages'));
+        // Récupérer la liste des boissons préférées distinctes
+        $boissons = User::whereNotNull('boisson_preferee')
+            ->distinct()
+            ->pluck('boisson_preferee')
+            ->sort();
+
+        return view('admin.users.index', compact('users', 'villages', 'boissons'));
     }
 
     public function show(User $user)
