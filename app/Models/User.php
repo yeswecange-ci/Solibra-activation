@@ -13,6 +13,7 @@ class User extends Authenticatable
     protected $fillable = [
         'phone',
         'name',
+        'boisson_preferee',
         'village_id',
         'source_type',
         'source_detail',

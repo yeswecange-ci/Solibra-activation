@@ -94,12 +94,13 @@ class TwilioStudioController extends Controller
     public function inscription(Request $request)
     {
         $validated = $request->validate([
-            'phone'         => 'required|string',
-            'name'          => 'required|string|min:2',
-            'source_type'   => 'required|string',
-            'source_detail' => 'required|string',
-            'status'        => 'nullable|string',
-            'timestamp'     => 'nullable|string',
+            'phone'            => 'required|string',
+            'name'             => 'required|string|min:2',
+            'boisson_preferee' => 'nullable|string',
+            'source_type'      => 'required|string',
+            'source_detail'    => 'required|string',
+            'status'           => 'nullable|string',
+            'timestamp'        => 'nullable|string',
         ]);
 
         $phone = $this->formatPhone($validated['phone']);
@@ -109,14 +110,20 @@ class TwilioStudioController extends Controller
 
         if ($user) {
             // Utilisateur déjà inscrit - mise à jour
-            $user->update([
+            $updateData = [
                 'name'                => ucwords(strtolower($validated['name'])),
                 'source_type'         => $validated['source_type'],
                 'source_detail'       => $validated['source_detail'],
                 'registration_status' => 'INSCRIT',
                 'opted_in_at'         => now(),
                 'is_active'           => true,
-            ]);
+            ];
+
+            if (isset($validated['boisson_preferee'])) {
+                $updateData['boisson_preferee'] = $validated['boisson_preferee'];
+            }
+
+            $user->update($updateData);
 
             Log::info('Twilio Studio - User updated', [
                 'user_id' => $user->id,
@@ -139,7 +146,7 @@ class TwilioStudioController extends Controller
                 ], 400);
             }
 
-            $user = User::create([
+            $userData = [
                 'name'                => ucwords(strtolower($validated['name'])),
                 'phone'               => $phone,
                 'village_id'          => $villageId,
@@ -149,7 +156,13 @@ class TwilioStudioController extends Controller
                 'registration_status' => 'INSCRIT',
                 'opted_in_at'         => now(),
                 'is_active'           => true,
-            ]);
+            ];
+
+            if (isset($validated['boisson_preferee'])) {
+                $userData['boisson_preferee'] = $validated['boisson_preferee'];
+            }
+
+            $user = User::create($userData);
 
             Log::info('Twilio Studio - New user registered', [
                 'user_id'    => $user->id,
@@ -368,6 +381,8 @@ class TwilioStudioController extends Controller
             'name'    => $user->name,
             'phone'   => $user->phone,
             'user_id' => $user->id,
+            'has_boisson_preferee' => !empty($user->boisson_preferee),
+            'boisson_preferee' => $user->boisson_preferee,
         ]);
     }
 
@@ -398,6 +413,44 @@ class TwilioStudioController extends Controller
             'success' => true,
             'message' => 'User reactivated successfully',
             'name'    => $user?->name,
+        ]);
+    }
+
+    /**
+     * Endpoint: POST /api/can/set-boisson
+     * Enregistrer la boisson préférée de l'utilisateur
+     */
+    public function setBoisson(Request $request)
+    {
+        $validated = $request->validate([
+            'phone'            => 'required|string',
+            'boisson_preferee' => 'required|string',
+        ]);
+
+        $phone = $this->formatPhone($validated['phone']);
+        $user  = User::where('phone', $phone)->first();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not found',
+            ], 404);
+        }
+
+        $user->update([
+            'boisson_preferee' => $validated['boisson_preferee'],
+        ]);
+
+        Log::info('Twilio Studio - Boisson préférée enregistrée', [
+            'user_id'          => $user->id,
+            'phone'            => $phone,
+            'boisson_preferee' => $validated['boisson_preferee'],
+        ]);
+
+        return response()->json([
+            'success'          => true,
+            'message'          => 'Boisson préférée enregistrée',
+            'boisson_preferee' => $user->boisson_preferee,
         ]);
     }
 

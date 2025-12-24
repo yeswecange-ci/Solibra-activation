@@ -1,0 +1,1647 @@
+{
+  "description": "Flow Solibra CAN 2025 - Optimisé avec gestion erreurs et routage intelligent",
+  "states": [
+    {
+      "name": "Trigger",
+      "type": "trigger",
+      "transitions": [
+        {
+          "next": "set_variables_initial",
+          "event": "incomingMessage"
+        },
+        {
+          "event": "incomingCall"
+        },
+        {
+          "event": "incomingConversationMessage"
+        },
+        {
+          "event": "incomingRequest"
+        },
+        {
+          "event": "incomingParent"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 0,
+          "y": 0
+        }
+      }
+    },
+    {
+      "name": "set_variables_initial",
+      "type": "set-variables",
+      "transitions": [
+        {
+          "next": "normalize_message",
+          "event": "next"
+        }
+      ],
+      "properties": {
+        "variables": [
+          {
+            "value": "{{trigger.message.From}}",
+            "key": "phone_number"
+          },
+          {
+            "value": "{{trigger.message.Body}}",
+            "key": "user_message"
+          },
+          {
+            "value": "{{trigger.message.Body | upcase | strip}}",
+            "key": "user_message_normalized"
+          },
+          {
+            "value": "{{now | date: '%Y-%m-%d %H:%M:%S'}}",
+            "key": "timestamp"
+          },
+          {
+            "value": "0",
+            "key": "retry_count"
+          }
+        ],
+        "offset": {
+          "x": 0,
+          "y": 200
+        }
+      }
+    },
+    {
+      "name": "normalize_message",
+      "type": "set-variables",
+      "transitions": [
+        {
+          "next": "check_global_stop",
+          "event": "next"
+        }
+      ],
+      "properties": {
+        "variables": [
+          {
+            "value": "{{widgets.set_variables_initial.user_message_normalized | replace: ' ', '' | replace: '\n', ''}}",
+            "key": "clean_message"
+          }
+        ],
+        "offset": {
+          "x": 0,
+          "y": 400
+        }
+      }
+    },
+    {
+      "name": "check_global_stop",
+      "type": "split-based-on",
+      "transitions": [
+        {
+          "next": "http_check_user_status",
+          "event": "noMatch"
+        },
+        {
+          "next": "http_handle_stop",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "STOP demandé",
+              "arguments": [
+                "{{flow.variables.clean_message}}"
+              ],
+              "type": "matches_any_of",
+              "value": "STOP,ARRET,UNSUBSCRIBE"
+            }
+          ]
+        }
+      ],
+      "properties": {
+        "input": "{{flow.variables.clean_message}}",
+        "offset": {
+          "x": 0,
+          "y": 600
+        }
+      }
+    },
+    {
+      "name": "http_check_user_status",
+      "type": "make-http-request",
+      "transitions": [
+        {
+          "next": "parse_user_status",
+          "event": "success"
+        },
+        {
+          "next": "handle_api_error",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 0,
+          "y": 850
+        },
+        "method": "POST",
+        "content_type": "application/x-www-form-urlencoded;charset=utf-8",
+        "body": "phone={{flow.variables.phone_number}}",
+        "url": "https://app-can-solibra.ywcdigital.com/api/can/check-user"
+      }
+    },
+    {
+      "name": "parse_user_status",
+      "type": "split-based-on",
+      "transitions": [
+        {
+          "next": "detect_source_type",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "Nouvel utilisateur",
+              "arguments": [
+                "{{widgets.http_check_user_status.parsed.status}}"
+              ],
+              "type": "equal_to",
+              "value": "NOT_FOUND"
+            }
+          ]
+        },
+        {
+          "next": "route_registered_user",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "Utilisateur inscrit",
+              "arguments": [
+                "{{widgets.http_check_user_status.parsed.status}}"
+              ],
+              "type": "equal_to",
+              "value": "INSCRIT"
+            }
+          ]
+        },
+        {
+          "next": "handle_reactivation",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "Utilisateur STOP",
+              "arguments": [
+                "{{widgets.http_check_user_status.parsed.status}}"
+              ],
+              "type": "equal_to",
+              "value": "STOP"
+            }
+          ]
+        },
+        {
+          "next": "handle_api_error",
+          "event": "noMatch"
+        }
+      ],
+      "properties": {
+        "input": "{{widgets.http_check_user_status.parsed.status}}",
+        "offset": {
+          "x": 0,
+          "y": 1100
+        }
+      }
+    },
+    {
+      "name": "detect_source_type",
+      "type": "split-based-on",
+      "transitions": [
+        {
+          "next": "set_source_direct",
+          "event": "noMatch"
+        },
+        {
+          "next": "set_source_affiche",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "Source Affiche",
+              "arguments": [
+                "{{flow.variables.clean_message}}"
+              ],
+              "type": "matches_any_of",
+              "value": "START_AFF_GOMBE,START_AFF_MASINA,START_AFF_LEMBA,START_AFF_BANDAL,START_AFF_NGALI,START_AFF_MATETE,START_AFF_KINTAMBO,START_AFF_NDJILI,START_AFF_LIMETE"
+            }
+          ]
+        },
+        {
+          "next": "set_source_pdv",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "Source PDV",
+              "arguments": [
+                "{{flow.variables.clean_message}}"
+              ],
+              "type": "matches_any_of",
+              "value": "START_PDV_BRACONGO,START_PDV_BAR1,START_PDV_BAR2,START_PDV_DEPOT1,START_PDV_DEPOT2"
+            }
+          ]
+        },
+        {
+          "next": "set_source_digital",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "Source Digital",
+              "arguments": [
+                "{{flow.variables.clean_message}}"
+              ],
+              "type": "matches_any_of",
+              "value": "START_FB,START_IG,START_TIKTOK,START_WA_STATUS,START_WEB"
+            }
+          ]
+        }
+      ],
+      "properties": {
+        "input": "{{flow.variables.clean_message}}",
+        "offset": {
+          "x": -800,
+          "y": 1400
+        }
+      }
+    },
+    {
+      "name": "set_source_affiche",
+      "type": "set-variables",
+      "transitions": [
+        {
+          "next": "start_registration_flow",
+          "event": "next"
+        }
+      ],
+      "properties": {
+        "variables": [
+          {
+            "value": "AFFICHE",
+            "key": "source_type"
+          },
+          {
+            "value": "{{flow.variables.clean_message | replace: 'START_AFF_', ''}}",
+            "key": "source_detail"
+          }
+        ],
+        "offset": {
+          "x": -1200,
+          "y": 1700
+        }
+      }
+    },
+    {
+      "name": "set_source_pdv",
+      "type": "set-variables",
+      "transitions": [
+        {
+          "next": "start_registration_flow",
+          "event": "next"
+        }
+      ],
+      "properties": {
+        "variables": [
+          {
+            "value": "PDV_BRACONGO",
+            "key": "source_type"
+          },
+          {
+            "value": "{{flow.variables.clean_message | replace: 'START_PDV_', ''}}",
+            "key": "source_detail"
+          }
+        ],
+        "offset": {
+          "x": -900,
+          "y": 1700
+        }
+      }
+    },
+    {
+      "name": "set_source_digital",
+      "type": "set-variables",
+      "transitions": [
+        {
+          "next": "start_registration_flow",
+          "event": "next"
+        }
+      ],
+      "properties": {
+        "variables": [
+          {
+            "value": "DIGITAL",
+            "key": "source_type"
+          },
+          {
+            "value": "{{flow.variables.clean_message | replace: 'START_', ''}}",
+            "key": "source_detail"
+          }
+        ],
+        "offset": {
+          "x": -600,
+          "y": 1700
+        }
+      }
+    },
+    {
+      "name": "set_source_direct",
+      "type": "set-variables",
+      "transitions": [
+        {
+          "next": "start_registration_flow",
+          "event": "next"
+        }
+      ],
+      "properties": {
+        "variables": [
+          {
+            "value": "DIRECT",
+            "key": "source_type"
+          },
+          {
+            "value": "SANS_QR",
+            "key": "source_detail"
+          }
+        ],
+        "offset": {
+          "x": -300,
+          "y": 1700
+        }
+      }
+    },
+    {
+      "name": "start_registration_flow",
+      "type": "make-http-request",
+      "transitions": [
+        {
+          "next": "msg_welcome_registration",
+          "event": "success"
+        },
+        {
+          "next": "handle_api_error",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": -600,
+          "y": 2000
+        },
+        "method": "POST",
+        "content_type": "application/x-www-form-urlencoded;charset=utf-8",
+        "body": "phone={{flow.variables.phone_number}}&source_type={{flow.variables.source_type}}&source_detail={{flow.variables.source_detail}}&timestamp={{flow.variables.timestamp}}&status=SCAN",
+        "url": "https://app-can-solibra.ywcdigital.com/api/can/scan"
+      }
+    },
+    {
+      "name": "msg_welcome_registration",
+      "type": "send-and-wait-for-reply",
+      "transitions": [
+        {
+          "next": "validate_optin_response",
+          "event": "incomingMessage"
+        },
+        {
+          "next": "handle_timeout",
+          "event": "timeout"
+        },
+        {
+          "next": "handle_delivery_failure",
+          "event": "deliveryFailure"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": -600,
+          "y": 2250
+        },
+        "from": "{{flow.channel.address}}",
+        "body": "⚽ BabiFoot by Solibra 2025\n\nAkwaba supporter !\n\nSolibra t'invite dans ses Villages babifoot city à Abidjan !\n\n🎁 Jeux, cadeaux & surprises t'attendent !\n\n⚠️ Pour continuer, confirme :\n✅ Tu as 18 ans ou plus\n✅ Tu acceptes nos messages\n\n👉 Tape OUI pour t'inscrire\n👉 Tape NON pour refuser",
+        "timeout": "3600"
+      }
+    },
+    {
+      "name": "validate_optin_response",
+      "type": "split-based-on",
+      "transitions": [
+        {
+          "next": "http_log_optin",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "OUI accepté",
+              "arguments": [
+                "{{widgets.msg_welcome_registration.inbound.Body | upcase | strip}}"
+              ],
+              "type": "matches_any_of",
+              "value": "OUI,O,YES,Y,OK,1"
+            }
+          ]
+        },
+        {
+          "next": "http_log_refus",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "NON refusé",
+              "arguments": [
+                "{{widgets.msg_welcome_registration.inbound.Body | upcase | strip}}"
+              ],
+              "type": "matches_any_of",
+              "value": "NON,N,NO,0"
+            }
+          ]
+        },
+        {
+          "next": "http_handle_stop",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "STOP pendant inscription",
+              "arguments": [
+                "{{widgets.msg_welcome_registration.inbound.Body | upcase | strip}}"
+              ],
+              "type": "matches_any_of",
+              "value": "STOP,ARRET,UNSUBSCRIBE"
+            }
+          ]
+        },
+        {
+          "next": "handle_invalid_optin",
+          "event": "noMatch"
+        }
+      ],
+      "properties": {
+        "input": "{{widgets.msg_welcome_registration.inbound.Body | upcase | strip}}",
+        "offset": {
+          "x": -600,
+          "y": 2550
+        }
+      }
+    },
+    {
+      "name": "handle_invalid_optin",
+      "type": "split-based-on",
+      "transitions": [
+        {
+          "next": "msg_retry_optin",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "Première tentative",
+              "arguments": [
+                "{{flow.variables.retry_count}}"
+              ],
+              "type": "less_than",
+              "value": "1"
+            }
+          ]
+        },
+        {
+          "next": "http_log_abandon",
+          "event": "noMatch"
+        }
+      ],
+      "properties": {
+        "input": "{{flow.variables.retry_count}}",
+        "offset": {
+          "x": -1000,
+          "y": 2550
+        }
+      }
+    },
+    {
+      "name": "msg_retry_optin",
+      "type": "send-and-wait-for-reply",
+      "transitions": [
+        {
+          "next": "increment_retry_optin",
+          "event": "incomingMessage"
+        },
+        {
+          "next": "handle_timeout",
+          "event": "timeout"
+        },
+        {
+          "next": "handle_delivery_failure",
+          "event": "deliveryFailure"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": -1000,
+          "y": 2800
+        },
+        "from": "{{flow.channel.address}}",
+        "body": "🤔 Je n'ai pas bien compris ta réponse.\n\nPour t'inscrire à SOLIBRA BABIFOOT CITY 2025 :\n✅ Tu as 18 ans ou plus\n✅ Tu acceptes nos messages\n\n👉 Tape OUI pour confirmer\n👉 Tape NON pour refuser\n👉 Tape STOP pour annuler",
+        "timeout": "1800"
+      }
+    },
+    {
+      "name": "increment_retry_optin",
+      "type": "set-variables",
+      "transitions": [
+        {
+          "next": "validate_optin_response",
+          "event": "next"
+        }
+      ],
+      "properties": {
+        "variables": [
+          {
+            "value": "1",
+            "key": "retry_count"
+          }
+        ],
+        "offset": {
+          "x": -1000,
+          "y": 3050
+        }
+      }
+    },
+    {
+      "name": "http_log_optin",
+      "type": "make-http-request",
+      "transitions": [
+        {
+          "next": "reset_retry_for_name",
+          "event": "success"
+        },
+        {
+          "next": "reset_retry_for_name",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": -600,
+          "y": 2850
+        },
+        "method": "POST",
+        "content_type": "application/x-www-form-urlencoded;charset=utf-8",
+        "body": "phone={{flow.variables.phone_number}}&status=OPTIN&timestamp={{now | date: '%Y-%m-%d %H:%M:%S'}}",
+        "url": "https://app-can-solibra.ywcdigital.com/api/can/optin"
+      }
+    },
+    {
+      "name": "reset_retry_for_name",
+      "type": "set-variables",
+      "transitions": [
+        {
+          "next": "msg_ask_name",
+          "event": "next"
+        }
+      ],
+      "properties": {
+        "variables": [
+          {
+            "value": "0",
+            "key": "retry_count"
+          }
+        ],
+        "offset": {
+          "x": -600,
+          "y": 3100
+        }
+      }
+    },
+    {
+      "name": "msg_ask_name",
+      "type": "send-and-wait-for-reply",
+      "transitions": [
+        {
+          "next": "validate_name_input",
+          "event": "incomingMessage"
+        },
+        {
+          "next": "handle_timeout",
+          "event": "timeout"
+        },
+        {
+          "next": "handle_delivery_failure",
+          "event": "deliveryFailure"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": -600,
+          "y": 3350
+        },
+        "from": "{{flow.channel.address}}",
+        "body": "Parfait ! ✅\n\nBienvenue dans la famille Solibra !\n\n📝 Quel est ton nom ou pseudo ?\n\n(Minimum 2 lettres)",
+        "timeout": "3600"
+      }
+    },
+    {
+      "name": "validate_name_input",
+      "type": "split-based-on",
+      "transitions": [
+        {
+          "next": "http_handle_stop",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "STOP pendant nom",
+              "arguments": [
+                "{{widgets.msg_ask_name.inbound.Body | upcase | strip}}"
+              ],
+              "type": "matches_any_of",
+              "value": "STOP,ARRET,UNSUBSCRIBE"
+            }
+          ]
+        },
+        {
+          "next": "set_user_name",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "Nom valide",
+              "arguments": [
+                "{{widgets.msg_ask_name.inbound.Body | size}}"
+              ],
+              "type": "greater_than_or_equal_to",
+              "value": "2"
+            }
+          ]
+        },
+        {
+          "next": "handle_invalid_name",
+          "event": "noMatch"
+        }
+      ],
+      "properties": {
+        "input": "{{widgets.msg_ask_name.inbound.Body}}",
+        "offset": {
+          "x": -600,
+          "y": 3650
+        }
+      }
+    },
+    {
+      "name": "handle_invalid_name",
+      "type": "split-based-on",
+      "transitions": [
+        {
+          "next": "msg_retry_name",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "Première tentative nom",
+              "arguments": [
+                "{{flow.variables.retry_count}}"
+              ],
+              "type": "less_than",
+              "value": "1"
+            }
+          ]
+        },
+        {
+          "next": "http_log_abandon",
+          "event": "noMatch"
+        }
+      ],
+      "properties": {
+        "input": "{{flow.variables.retry_count}}",
+        "offset": {
+          "x": -1000,
+          "y": 3650
+        }
+      }
+    },
+    {
+      "name": "msg_retry_name",
+      "type": "send-and-wait-for-reply",
+      "transitions": [
+        {
+          "next": "increment_retry_name",
+          "event": "incomingMessage"
+        },
+        {
+          "next": "handle_timeout",
+          "event": "timeout"
+        },
+        {
+          "next": "handle_delivery_failure",
+          "event": "deliveryFailure"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": -1000,
+          "y": 3900
+        },
+        "from": "{{flow.channel.address}}",
+        "body": "❌ Nom trop court !\n\n📝 Donne-moi ton prénom ou pseudo (minimum 2 lettres).\n\nExemple : Jean, Marie, Champion, etc.\n\n👉 Tape STOP pour annuler",
+        "timeout": "1800"
+      }
+    },
+    {
+      "name": "increment_retry_name",
+      "type": "set-variables",
+      "transitions": [
+        {
+          "next": "validate_name_input",
+          "event": "next"
+        }
+      ],
+      "properties": {
+        "variables": [
+          {
+            "value": "1",
+            "key": "retry_count"
+          }
+        ],
+        "offset": {
+          "x": -1000,
+          "y": 4150
+        }
+      }
+    },
+    {
+      "name": "set_user_name",
+      "type": "set-variables",
+      "transitions": [
+        {
+          "next": "http_complete_registration",
+          "event": "next"
+        }
+      ],
+      "properties": {
+        "variables": [
+          {
+            "value": "{{widgets.msg_ask_name.inbound.Body | capitalize}}",
+            "key": "user_name"
+          }
+        ],
+        "offset": {
+          "x": -600,
+          "y": 3950
+        }
+      }
+    },
+    {
+      "name": "http_complete_registration",
+      "type": "make-http-request",
+      "transitions": [
+        {
+          "next": "msg_registration_success",
+          "event": "success"
+        },
+        {
+          "next": "handle_api_error",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": -600,
+          "y": 4200
+        },
+        "method": "POST",
+        "content_type": "application/x-www-form-urlencoded;charset=utf-8",
+        "body": "phone={{flow.variables.phone_number}}&name={{flow.variables.user_name}}&source_type={{flow.variables.source_type}}&source_detail={{flow.variables.source_detail}}&status=INSCRIT&timestamp={{now | date: '%Y-%m-%d %H:%M:%S'}}",
+        "url": "https://app-can-solibra.ywcdigital.com/api/can/inscription"
+      }
+    },
+    {
+      "name": "msg_registration_success",
+      "type": "send-message",
+      "transitions": [
+        {
+          "next": "show_main_menu",
+          "event": "sent"
+        },
+        {
+          "next": "end_success",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": -600,
+          "y": 4450
+        },
+        "from": "{{flow.channel.address}}",
+        "to": "{{contact.channel.address}}",
+        "body": "✅ C'est bon {{flow.variables.user_name}} !\n\nTu fais partie de la TEAM SOLIBRA BABIFOOT CITY 2025 ⚽\n\n🎁 A gagner :\n→ Casier de Bock ou World Cola\n→ Bons d'achats\n→ Maillots & accessoires\n\nPrépare-toi à jouer et à gagner !\n\n#BabiFootCity"
+      }
+    },
+    {
+      "name": "route_registered_user",
+      "type": "split-based-on",
+      "transitions": [
+        {
+          "next": "show_main_menu",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "Commande MENU",
+              "arguments": [
+                "{{flow.variables.clean_message}}"
+              ],
+              "type": "matches_any_of",
+              "value": "MENU,AIDE,HELP,INFO"
+            }
+          ]
+        },
+        {
+          "next": "subflow_pronostic",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "Faire pronostic",
+              "arguments": [
+                "{{flow.variables.clean_message}}"
+              ],
+              "type": "matches_any_of",
+              "value": "PRONOSTIC,PRONO,2"
+            }
+          ]
+        },
+        {
+          "next": "subflow_quiz",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "Quiz marques",
+              "arguments": [
+                "{{flow.variables.clean_message}}"
+              ],
+              "type": "matches_any_of",
+              "value": "QUIZ,5,SOLIBRAVILLAGECAN"
+            }
+          ]
+        },
+        {
+          "next": "msg_welcome_back",
+          "event": "noMatch"
+        }
+      ],
+      "properties": {
+        "input": "{{flow.variables.clean_message}}",
+        "offset": {
+          "x": 800,
+          "y": 1400
+        }
+      }
+    },
+    {
+      "name": "msg_welcome_back",
+      "type": "send-message",
+      "transitions": [
+        {
+          "next": "show_main_menu",
+          "event": "sent"
+        },
+        {
+          "next": "end_already_registered",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 1300,
+          "y": 1400
+        },
+        "from": "{{flow.channel.address}}",
+        "to": "{{contact.channel.address}}",
+        "body": "👋 Salut {{widgets.http_check_user_status.parsed.name}} !\n\nContent de te revoir ! 🎉\n\nTu es déjà inscrit(e) à BABIFOOT CITY by Solibra 2025 ⚽\n\n#BabiFootCity"
+      }
+    },
+    {
+      "name": "show_main_menu",
+      "type": "send-and-wait-for-reply",
+      "transitions": [
+        {
+          "next": "process_menu_choice",
+          "event": "incomingMessage"
+        },
+        {
+          "next": "end_success",
+          "event": "timeout"
+        },
+        {
+          "next": "handle_delivery_failure",
+          "event": "deliveryFailure"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 800,
+          "y": 1700
+        },
+        "from": "{{flow.channel.address}}",
+        "body": "🎯 MENU PRINCIPAL\n\nQue veux-tu faire ?\n\n2️⃣ PRONOSTIC - Faire un pronostic\n5️⃣ QUIZ - Quiz sur les marques\n\n👉 Tape le numéro ou le mot-clé\n📵 Tape STOP pour te désinscrire",
+        "timeout": "3600"
+      }
+    },
+    {
+      "name": "process_menu_choice",
+      "type": "split-based-on",
+      "transitions": [
+        {
+          "next": "http_handle_stop",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "STOP depuis menu",
+              "arguments": [
+                "{{widgets.show_main_menu.inbound.Body | upcase | strip}}"
+              ],
+              "type": "matches_any_of",
+              "value": "STOP,ARRET,UNSUBSCRIBE"
+            }
+          ]
+        },
+        {
+          "next": "subflow_pronostic",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "Choix 2 - Pronostic",
+              "arguments": [
+                "{{widgets.show_main_menu.inbound.Body | upcase | strip}}"
+              ],
+              "type": "matches_any_of",
+              "value": "2,PRONOSTIC,PRONO"
+            }
+          ]
+        },
+        {
+          "next": "subflow_quiz",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "Choix 5 - Quiz",
+              "arguments": [
+                "{{widgets.show_main_menu.inbound.Body | upcase | strip}}"
+              ],
+              "type": "matches_any_of",
+              "value": "5,QUIZ"
+            }
+          ]
+        },
+        {
+          "next": "handle_invalid_menu_choice",
+          "event": "noMatch"
+        }
+      ],
+      "properties": {
+        "input": "{{widgets.show_main_menu.inbound.Body | upcase | strip}}",
+        "offset": {
+          "x": 800,
+          "y": 2000
+        }
+      }
+    },
+    {
+      "name": "handle_invalid_menu_choice",
+      "type": "send-message",
+      "transitions": [
+        {
+          "next": "show_main_menu",
+          "event": "sent"
+        },
+        {
+          "next": "end_error",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 1300,
+          "y": 2000
+        },
+        "from": "{{flow.channel.address}}",
+        "to": "{{contact.channel.address}}",
+        "body": "❌ Choix invalide !\n\nMerci de choisir :\n\n• PRONOSTIC ou 2\n• QUIZ ou 5\n\nTape MENU pour revoir les options."
+      }
+    },
+    {
+      "name": "handle_reactivation",
+      "type": "send-and-wait-for-reply",
+      "transitions": [
+        {
+          "next": "validate_reactivation",
+          "event": "incomingMessage"
+        },
+        {
+          "next": "handle_timeout",
+          "event": "timeout"
+        },
+        {
+          "next": "handle_delivery_failure",
+          "event": "deliveryFailure"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 400,
+          "y": 1400
+        },
+        "from": "{{flow.channel.address}}",
+        "body": "👋 Salut {{widgets.http_check_user_status.parsed.name}} !\n\nTu t'étais désinscrit(e) de SOLIBRA BABIFOOT CITY.\n\n🎁 Tu veux te réinscrire pour participer aux jeux et gagner des cadeaux ?\n\n⚠️ Confirme :\n✅ 18 ans ou plus\n✅ Tu acceptes nos messages\n\n👉 Tape OUI pour revenir\n👉 Tape NON pour rester désinscrit(e)",
+        "timeout": "3600"
+      }
+    },
+    {
+      "name": "validate_reactivation",
+      "type": "split-based-on",
+      "transitions": [
+        {
+          "next": "http_reactivate_user",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "OUI réactivation",
+              "arguments": [
+                "{{widgets.handle_reactivation.inbound.Body | upcase | strip}}"
+              ],
+              "type": "matches_any_of",
+              "value": "OUI,O,YES,Y,OK,1"
+            }
+          ]
+        },
+        {
+          "next": "msg_stay_unsubscribed",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "NON ou STOP",
+              "arguments": [
+                "{{widgets.handle_reactivation.inbound.Body | upcase | strip}}"
+              ],
+              "type": "matches_any_of",
+              "value": "NON,N,NO,0,STOP,ARRET"
+            }
+          ]
+        },
+        {
+          "next": "msg_invalid_reactivation",
+          "event": "noMatch"
+        }
+      ],
+      "properties": {
+        "input": "{{widgets.handle_reactivation.inbound.Body | upcase | strip}}",
+        "offset": {
+          "x": 400,
+          "y": 1700
+        }
+      }
+    },
+    {
+      "name": "msg_invalid_reactivation",
+      "type": "send-message",
+      "transitions": [
+        {
+          "next": "handle_reactivation",
+          "event": "sent"
+        },
+        {
+          "next": "end_error",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 0,
+          "y": 1700
+        },
+        "from": "{{flow.channel.address}}",
+        "to": "{{contact.channel.address}}",
+        "body": "🤔 Je n'ai pas compris.\n\nPour te réinscrire :\n👉 Tape OUI\n\nPour rester désinscrit(e) :\n👉 Tape NON"
+      }
+    },
+    {
+      "name": "http_reactivate_user",
+      "type": "make-http-request",
+      "transitions": [
+        {
+          "next": "msg_reactivation_success",
+          "event": "success"
+        },
+        {
+          "next": "handle_api_error",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 400,
+          "y": 2000
+        },
+        "method": "POST",
+        "content_type": "application/x-www-form-urlencoded;charset=utf-8",
+        "body": "phone={{flow.variables.phone_number}}&status=REACTIVATED&timestamp={{now | date: '%Y-%m-%d %H:%M:%S'}}",
+        "url": "https://app-can-solibra.ywcdigital.com/api/can/reactivate"
+      }
+    },
+    {
+      "name": "msg_reactivation_success",
+      "type": "send-message",
+      "transitions": [
+        {
+          "next": "show_main_menu",
+          "event": "sent"
+        },
+        {
+          "next": "end_reactivated",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 400,
+          "y": 2250
+        },
+        "from": "{{flow.channel.address}}",
+        "to": "{{contact.channel.address}}",
+        "body": "🎉 Content de te revoir {{widgets.http_check_user_status.parsed.name}} !\n\nTu es de retour dans la FAMILLE SOLIBRA BABIFOOT CITY 2025 ! ⚽\n\n🔜 Tu peux maintenant :\n→ Faire des pronostics\n→ Participer aux quiz\n→ Gagner des cadeaux\n\nPrépare-toi ! 🏆\n\n#BabiFootCity"
+      }
+    },
+    {
+      "name": "msg_stay_unsubscribed",
+      "type": "send-message",
+      "transitions": [
+        {
+          "next": "end_stop",
+          "event": "sent"
+        },
+        {
+          "next": "end_stop",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 700,
+          "y": 1700
+        },
+        "from": "{{flow.channel.address}}",
+        "to": "{{contact.channel.address}}",
+        "body": "OK, pas de souci ! 👋\n\nTu restes désinscrit(e).\n\nSi tu changes d'avis, envoie-nous OUI.\n\nA bientôt ! ⚽"
+      }
+    },
+    {
+      "name": "http_handle_stop",
+      "type": "make-http-request",
+      "transitions": [
+        {
+          "next": "msg_stop_confirmation",
+          "event": "success"
+        },
+        {
+          "next": "msg_stop_confirmation",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 400,
+          "y": 600
+        },
+        "method": "POST",
+        "content_type": "application/x-www-form-urlencoded;charset=utf-8",
+        "body": "phone={{flow.variables.phone_number}}&status=STOP&timestamp={{now | date: '%Y-%m-%d %H:%M:%S'}}",
+        "url": "https://app-can-solibra.ywcdigital.com/api/can/stop"
+      }
+    },
+    {
+      "name": "msg_stop_confirmation",
+      "type": "send-message",
+      "transitions": [
+        {
+          "next": "end_stop",
+          "event": "sent"
+        },
+        {
+          "next": "end_stop",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 400,
+          "y": 850
+        },
+        "from": "{{flow.channel.address}}",
+        "to": "{{contact.channel.address}}",
+        "body": "✅ C'est noté.\n\nTu es désinscrit(e) et ne recevras plus de messages de SOLIBRA BABIFOOT CITY.\n\nPour te réinscrire plus tard, envoie-nous OUI.\n\nA bientôt ! ⚽"
+      }
+    },
+    {
+      "name": "http_log_refus",
+      "type": "make-http-request",
+      "transitions": [
+        {
+          "next": "msg_refus",
+          "event": "success"
+        },
+        {
+          "next": "msg_refus",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": -200,
+          "y": 2850
+        },
+        "method": "POST",
+        "content_type": "application/x-www-form-urlencoded;charset=utf-8",
+        "body": "phone={{flow.variables.phone_number}}&status=REFUS&timestamp={{now | date: '%Y-%m-%d %H:%M:%S'}}",
+        "url": "https://app-can-solibra.ywcdigital.com/api/can/refus"
+      }
+    },
+    {
+      "name": "msg_refus",
+      "type": "send-message",
+      "transitions": [
+        {
+          "next": "end_refus",
+          "event": "sent"
+        },
+        {
+          "next": "end_refus",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": -200,
+          "y": 3100
+        },
+        "from": "{{flow.channel.address}}",
+        "to": "{{contact.channel.address}}",
+        "body": "Pas de problème ! 👋\n\nSi tu changes d'avis, envoie-nous OUI pour t'inscrire.\n\nAllez les Léopards ! 🦁\n\n#BabiFootCity"
+      }
+    },
+    {
+      "name": "http_log_abandon",
+      "type": "make-http-request",
+      "transitions": [
+        {
+          "next": "msg_abandon",
+          "event": "success"
+        },
+        {
+          "next": "msg_abandon",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": -1400,
+          "y": 2850
+        },
+        "method": "POST",
+        "content_type": "application/x-www-form-urlencoded;charset=utf-8",
+        "body": "phone={{flow.variables.phone_number}}&status=ABANDON&timestamp={{now | date: '%Y-%m-%d %H:%M:%S'}}",
+        "url": "https://app-can-solibra.ywcdigital.com/api/can/abandon"
+      }
+    },
+    {
+      "name": "msg_abandon",
+      "type": "send-message",
+      "transitions": [
+        {
+          "next": "end_abandon",
+          "event": "sent"
+        },
+        {
+          "next": "end_abandon",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": -1400,
+          "y": 3100
+        },
+        "from": "{{flow.channel.address}}",
+        "to": "{{contact.channel.address}}",
+        "body": "⏱️ Trop de tentatives non valides.\n\nPas de problème ! 👋\n\nSi tu veux t'inscrire, envoie-nous OUI.\n\nA bientôt ! ⚽"
+      }
+    },
+    {
+      "name": "handle_timeout",
+      "type": "make-http-request",
+      "transitions": [
+        {
+          "next": "msg_timeout",
+          "event": "success"
+        },
+        {
+          "next": "msg_timeout",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": -1800,
+          "y": 1400
+        },
+        "method": "POST",
+        "content_type": "application/x-www-form-urlencoded;charset=utf-8",
+        "body": "phone={{flow.variables.phone_number}}&status=TIMEOUT&timestamp={{now | date: '%Y-%m-%d %H:%M:%S'}}",
+        "url": "https://app-can-solibra.ywcdigital.com/api/can/timeout"
+      }
+    },
+    {
+      "name": "msg_timeout",
+      "type": "send-message",
+      "transitions": [
+        {
+          "next": "end_timeout",
+          "event": "sent"
+        },
+        {
+          "next": "end_timeout",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": -1800,
+          "y": 1650
+        },
+        "from": "{{flow.channel.address}}",
+        "to": "{{contact.channel.address}}",
+        "body": "⏱️ Temps écoulé !\n\nPas de réponse reçue.\n\nPour recommencer, envoie-nous un message.\n\nA bientôt ! ⚽"
+      }
+    },
+    {
+      "name": "handle_delivery_failure",
+      "type": "make-http-request",
+      "transitions": [
+        {
+          "next": "end_error",
+          "event": "success"
+        },
+        {
+          "next": "end_error",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": -1800,
+          "y": 1900
+        },
+        "method": "POST",
+        "content_type": "application/x-www-form-urlencoded;charset=utf-8",
+        "body": "phone={{flow.variables.phone_number}}&status=DELIVERY_FAILURE&error=Message delivery failed&timestamp={{now | date: '%Y-%m-%d %H:%M:%S'}}",
+        "url": "https://app-can-solibra.ywcdigital.com/api/can/error"
+      }
+    },
+    {
+      "name": "handle_api_error",
+      "type": "send-message",
+      "transitions": [
+        {
+          "next": "log_api_error",
+          "event": "sent"
+        },
+        {
+          "next": "log_api_error",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": -1800,
+          "y": 2400
+        },
+        "from": "{{flow.channel.address}}",
+        "to": "{{contact.channel.address}}",
+        "body": "⚠️ Une erreur technique est survenue.\n\nMerci de réessayer dans quelques instants.\n\nSi le problème persiste, contacte notre support.\n\nDésolé pour la gêne ! 🙏"
+      }
+    },
+    {
+      "name": "log_api_error",
+      "type": "make-http-request",
+      "transitions": [
+        {
+          "next": "end_error",
+          "event": "success"
+        },
+        {
+          "next": "end_error",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": -1800,
+          "y": 2650
+        },
+        "method": "POST",
+        "content_type": "application/x-www-form-urlencoded;charset=utf-8",
+        "body": "phone={{flow.variables.phone_number}}&status=API_ERROR&error=API request failed or timed out&timestamp={{now | date: '%Y-%m-%d %H:%M:%S'}}",
+        "url": "https://app-can-solibra.ywcdigital.com/api/can/error"
+      }
+    },
+    {
+      "name": "subflow_pronostic",
+      "type": "run-subflow",
+      "transitions": [
+        {
+          "next": "end_success",
+          "event": "completed"
+        },
+        {
+          "next": "handle_subflow_error",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "flow_sid": "FW26cc752ab63630c73404fab72632f65c",
+        "offset": {
+          "x": 1600,
+          "y": 2000
+        }
+      }
+    },
+    {
+      "name": "subflow_quiz",
+      "type": "run-subflow",
+      "transitions": [
+        {
+          "next": "end_success",
+          "event": "completed"
+        },
+        {
+          "next": "handle_subflow_error",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "flow_sid": "FW6643799ed631c2c6a966923e94e11cce",
+        "offset": {
+          "x": 1600,
+          "y": 2300
+        }
+      }
+    },
+    {
+      "name": "handle_subflow_error",
+      "type": "send-message",
+      "transitions": [
+        {
+          "next": "show_main_menu",
+          "event": "sent"
+        },
+        {
+          "next": "end_error",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 2000,
+          "y": 2150
+        },
+        "from": "{{flow.channel.address}}",
+        "to": "{{contact.channel.address}}",
+        "body": "⚠️ Une erreur est survenue lors du traitement de ta demande.\n\nMerci de réessayer.\n\nTape MENU pour voir les options disponibles."
+      }
+    },
+    {
+      "name": "end_success",
+      "type": "set-variables",
+      "transitions": [],
+      "properties": {
+        "variables": [
+          {
+            "value": "SUCCESS",
+            "key": "flow_status"
+          }
+        ],
+        "offset": {
+          "x": 800,
+          "y": 4700
+        }
+      }
+    },
+    {
+      "name": "end_already_registered",
+      "type": "set-variables",
+      "transitions": [],
+      "properties": {
+        "variables": [
+          {
+            "value": "ALREADY_REGISTERED",
+            "key": "flow_status"
+          }
+        ],
+        "offset": {
+          "x": 1300,
+          "y": 1900
+        }
+      }
+    },
+    {
+      "name": "end_reactivated",
+      "type": "set-variables",
+      "transitions": [],
+      "properties": {
+        "variables": [
+          {
+            "value": "REACTIVATED",
+            "key": "flow_status"
+          }
+        ],
+        "offset": {
+          "x": 400,
+          "y": 2500
+        }
+      }
+    },
+    {
+      "name": "end_stop",
+      "type": "set-variables",
+      "transitions": [],
+      "properties": {
+        "variables": [
+          {
+            "value": "STOP",
+            "key": "flow_status"
+          }
+        ],
+        "offset": {
+          "x": 700,
+          "y": 1100
+        }
+      }
+    },
+    {
+      "name": "end_refus",
+      "type": "set-variables",
+      "transitions": [],
+      "properties": {
+        "variables": [
+          {
+            "value": "REFUS",
+            "key": "flow_status"
+          }
+        ],
+        "offset": {
+          "x": -200,
+          "y": 3350
+        }
+      }
+    },
+    {
+      "name": "end_abandon",
+      "type": "set-variables",
+      "transitions": [],
+      "properties": {
+        "variables": [
+          {
+            "value": "ABANDON",
+            "key": "flow_status"
+          }
+        ],
+        "offset": {
+          "x": -1400,
+          "y": 3350
+        }
+      }
+    },
+    {
+      "name": "end_timeout",
+      "type": "set-variables",
+      "transitions": [],
+      "properties": {
+        "variables": [
+          {
+            "value": "TIMEOUT",
+            "key": "flow_status"
+          }
+        ],
+        "offset": {
+          "x": -1800,
+          "y": 1900
+        }
+      }
+    },
+    {
+      "name": "end_error",
+      "type": "set-variables",
+      "transitions": [],
+      "properties": {
+        "variables": [
+          {
+            "value": "ERROR",
+            "key": "flow_status"
+          }
+        ],
+        "offset": {
+          "x": -1800,
+          "y": 2900
+        }
+      }
+    }
+  ],
+  "initial_state": "Trigger",
+  "flags": {
+    "allow_concurrent_calls": true
+  }
+}

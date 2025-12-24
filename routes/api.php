@@ -37,6 +37,7 @@ Route::prefix('can')->group(function () {
     Route::post('/timeout', [TwilioStudioController::class, 'timeout'])->name('api.can.timeout');
     Route::post('/error', [TwilioStudioController::class, 'error'])->name('api.can.error');
     Route::post('/reactivate', [TwilioStudioController::class, 'reactivate'])->name('api.can.reactivate');
+    Route::post('/set-boisson', [TwilioStudioController::class, 'setBoisson'])->name('api.can.set-boisson');
     Route::post('/log', [TwilioStudioController::class, 'log'])->name('api.can.log');
 
     // Nouvelles API pour le flow interactif
