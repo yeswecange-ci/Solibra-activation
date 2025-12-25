@@ -15,6 +15,7 @@ class User extends Authenticatable
         'name',
         'boisson_preferee',
         'quiz_answer',
+        'accepted_policies_at',
         'village_id',
         'source_type',
         'source_detail',
@@ -26,6 +27,7 @@ class User extends Authenticatable
 
     protected $casts = [
         'opted_in_at' => 'datetime',
+        'accepted_policies_at' => 'datetime',
         'is_active' => 'boolean',
     ];
 

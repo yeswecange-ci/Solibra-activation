@@ -24,9 +24,9 @@
         </div>
 
         <!-- Filtres -->
-        <form method="GET" action="{{ route('admin.users.index') }}" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <form method="GET" action="{{ route('admin.users.index') }}" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
             <!-- Recherche -->
-            <div>
+            <div class="lg:col-span-2">
                 <label for="search" class="block text-sm font-semibold text-gray-700 mb-2">Recherche</label>
                 <div class="relative">
                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -39,7 +39,7 @@
                         name="search"
                         id="search"
                         value="{{ request('search') }}"
-                        class="w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+                        class="w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition"
                         placeholder="Nom ou téléphone..."
                     >
                 </div>
@@ -51,9 +51,9 @@
                 <select
                     name="village_id"
                     id="village_id"
-                    class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+                    class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition"
                 >
-                    <option value="">Tous les villages</option>
+                    <option value="">Tous</option>
                     @foreach($villages as $village)
                         <option value="{{ $village->id }}" {{ request('village_id') == $village->id ? 'selected' : '' }}>
                             {{ $village->name }}
@@ -64,13 +64,13 @@
 
             <!-- Boisson Préférée -->
             <div>
-                <label for="boisson_preferee" class="block text-sm font-semibold text-gray-700 mb-2">Boisson préférée</label>
+                <label for="boisson_preferee" class="block text-sm font-semibold text-gray-700 mb-2">Boisson</label>
                 <select
                     name="boisson_preferee"
                     id="boisson_preferee"
-                    class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition"
+                    class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition"
                 >
-                    <option value="">Toutes les boissons</option>
+                    <option value="">Toutes</option>
                     @foreach($boissons as $boisson)
                         <option value="{{ $boisson }}" {{ request('boisson_preferee') == $boisson ? 'selected' : '' }}>
                             {{ $boisson }}
@@ -79,15 +79,32 @@
                 </select>
             </div>
 
+            <!-- Quiz Answer -->
+            <div>
+                <label for="quiz_answer" class="block text-sm font-semibold text-gray-700 mb-2">Quiz FIF</label>
+                <select
+                    name="quiz_answer"
+                    id="quiz_answer"
+                    class="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition"
+                >
+                    <option value="">Toutes</option>
+                    @foreach($quizAnswers as $answer)
+                        <option value="{{ $answer }}" {{ request('quiz_answer') == $answer ? 'selected' : '' }}>
+                            {{ $answer }}
+                        </option>
+                    @endforeach
+                </select>
+            </div>
+
             <!-- Boutons -->
             <div class="flex items-end space-x-2">
-                <button type="submit" class="flex-1 bg-gradient-to-r from-indigo-600 to-indigo-700 text-white px-5 py-2.5 rounded-lg hover:from-indigo-700 hover:to-indigo-800 transition-all shadow-md hover:shadow-lg font-medium">
+                <button type="submit" class="flex-1 bg-primary text-white px-5 py-2.5 rounded-lg hover:bg-primary-dark transition-all shadow-sm font-medium">
                     <svg class="w-4 h-4 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"></path>
                     </svg>
                     Filtrer
                 </button>
-                <a href="{{ route('admin.users.index') }}" class="px-5 py-2.5 border-2 border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition font-medium">
+                <a href="{{ route('admin.users.index') }}" class="px-5 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition font-medium">
                     Réinitialiser
                 </a>
             </div>
@@ -108,19 +125,21 @@
     <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-100">
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gradient-to-r from-gray-50 to-gray-100">
+                <thead class="bg-gray-50">
                     <tr>
                         <th class="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Joueur</th>
                         <th class="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Téléphone</th>
                         <th class="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Village</th>
+                        <th class="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Quiz FIF</th>
+                        <th class="px-6 py-4 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">Politiques</th>
                         <th class="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Inscrit le</th>
-                        <th class="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Statut</th>
+                        <th class="px-6 py-4 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">Statut</th>
                         <th class="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-100">
                     @forelse($users as $user)
-                        <tr class="hover:bg-indigo-50 transition-colors">
+                        <tr class="hover:bg-gray-50 transition-colors">
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <div class="flex items-center">
                                     <div class="w-10 h-10 bg-gradient-to-br from-indigo-400 to-indigo-600 rounded-full flex items-center justify-center text-white font-bold mr-3">
@@ -153,7 +172,7 @@
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 @if($user->village)
-                                    <span class="inline-flex items-center px-3 py-1 text-sm font-bold rounded-full bg-blue-100 text-blue-800">
+                                    <span class="inline-flex items-center px-3 py-1 text-sm font-bold rounded-full bg-blue-100 text-primary">
                                         <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
                                         </svg>
@@ -161,6 +180,45 @@
                                     </span>
                                 @else
                                     <span class="text-sm text-gray-400 italic">Non assigné</span>
+                                @endif
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                @if($user->quiz_answer)
+                                    <span class="inline-flex items-center px-3 py-1 text-sm font-semibold rounded-full
+                                        {{ $user->quiz_answer === 'OUI' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }}">
+                                        @if($user->quiz_answer === 'OUI')
+                                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                            </svg>
+                                        @else
+                                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                            </svg>
+                                        @endif
+                                        {{ $user->quiz_answer }}
+                                    </span>
+                                @else
+                                    <span class="text-sm text-gray-400 italic">-</span>
+                                @endif
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-center">
+                                @if($user->accepted_policies_at)
+                                    <div class="inline-flex flex-col items-center">
+                                        <span class="inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800 mb-1">
+                                            <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                            </svg>
+                                            Acceptées
+                                        </span>
+                                        <span class="text-xs text-gray-500">{{ $user->accepted_policies_at->format('d/m/Y H:i') }}</span>
+                                    </div>
+                                @else
+                                    <span class="inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-600">
+                                        <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                        </svg>
+                                        Non
+                                    </span>
                                 @endif
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
@@ -202,7 +260,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="px-6 py-12 text-center">
+                            <td colspan="8" class="px-6 py-12 text-center">
                                 <svg class="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
                                 </svg>

@@ -198,8 +198,9 @@ class TwilioStudioController extends Controller
     {
         $validated = $request->validate([
             'phone'     => 'required|string',
-            'answer_1'  => 'required|string', // Boisson préférée
-            'answer_2'  => 'required|string', // Réponse au quiz
+            'answer_1'  => 'nullable|string', // Boisson préférée
+            'answer_2'  => 'nullable|string', // Réponse au quiz
+            'accepted_policies' => 'nullable|boolean', // Acceptation des politiques
             'status'    => 'nullable|string',
             'timestamp' => 'nullable|string',
         ]);
@@ -209,19 +210,33 @@ class TwilioStudioController extends Controller
         // Vérifier si l'utilisateur existe déjà
         $user = User::where('phone', $phone)->first();
 
+        // Préparer les données à mettre à jour
+        $updateData = [];
+
+        if (isset($validated['answer_1'])) {
+            $updateData['boisson_preferee'] = $validated['answer_1'];
+        }
+
+        if (isset($validated['answer_2'])) {
+            $updateData['quiz_answer'] = $validated['answer_2'];
+        }
+
+        if (isset($validated['accepted_policies']) && $validated['accepted_policies']) {
+            $updateData['accepted_policies_at'] = now();
+            $updateData['registration_status'] = 'INSCRIT';
+        }
+
         if ($user) {
-            // Utilisateur existe - mise à jour
-            $user->update([
-                'boisson_preferee'    => $validated['answer_1'],
-                'quiz_answer'         => $validated['answer_2'],
-                'registration_status' => 'INSCRIT',
-                'opted_in_at'         => now(),
-                'is_active'           => true,
-            ]);
+            // Utilisateur existe - mise à jour partielle ou complète
+            $updateData['opted_in_at'] = $updateData['opted_in_at'] ?? $user->opted_in_at ?? now();
+            $updateData['is_active'] = true;
+
+            $user->update($updateData);
 
             Log::info('Twilio Studio - User updated (simple flow)', [
                 'user_id' => $user->id,
                 'phone'   => $phone,
+                'updated_fields' => array_keys($updateData),
             ]);
         } else {
             // Nouvel utilisateur - créer avec nom générique
@@ -234,19 +249,19 @@ class TwilioStudioController extends Controller
                 ], 400);
             }
 
-            $user = User::create([
+            $userData = array_merge([
                 'phone'               => $phone,
                 'name'                => 'Participant_' . substr($phone, -4), // Nom générique
-                'boisson_preferee'    => $validated['answer_1'],
-                'quiz_answer'         => $validated['answer_2'],
                 'village_id'          => $defaultVillage->id,
                 'source_type'         => 'WHATSAPP_FLOW',
                 'source_detail'       => 'FlowSimpleSocialV2',
                 'scan_timestamp'      => $validated['timestamp'] ?? now(),
-                'registration_status' => 'INSCRIT',
+                'registration_status' => 'PENDING',
                 'opted_in_at'         => now(),
                 'is_active'           => true,
-            ]);
+            ], $updateData);
+
+            $user = User::create($userData);
 
             Log::info('Twilio Studio - New user registered (simple flow)', [
                 'user_id'    => $user->id,
@@ -267,9 +282,12 @@ class TwilioStudioController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'User registered successfully',
+            'message' => 'User data saved successfully',
             'user_id' => $user->id,
             'name'    => $user->name,
+            'has_boisson' => !empty($user->boisson_preferee),
+            'has_quiz_answer' => !empty($user->quiz_answer),
+            'has_accepted_policies' => !empty($user->accepted_policies_at),
         ]);
     }
 
@@ -432,7 +450,7 @@ class TwilioStudioController extends Controller
 
     /**
      * Endpoint: POST /api/can/check-user
-     * Vérifier si l'utilisateur existe déjà
+     * Vérifier l'état complet de l'utilisateur (existence, réponses, politiques)
      */
     public function checkUser(Request $request)
     {
@@ -443,6 +461,7 @@ class TwilioStudioController extends Controller
         $phone = $this->formatPhone($validated['phone']);
         $user  = User::where('phone', $phone)->first();
 
+        // Utilisateur n'existe pas
         if (! $user) {
             return response()->json([
                 'status'  => 'NOT_FOUND',
@@ -450,6 +469,7 @@ class TwilioStudioController extends Controller
             ]);
         }
 
+        // Utilisateur a demandé STOP
         if (! $user->is_active || $user->registration_status === 'STOP') {
             return response()->json([
                 'status'  => 'STOP',
@@ -459,13 +479,44 @@ class TwilioStudioController extends Controller
             ]);
         }
 
+        // Vérifier l'état de completion
+        $hasBoisson = !empty($user->boisson_preferee);
+        $hasQuizAnswer = !empty($user->quiz_answer);
+        $hasAcceptedPolicies = !empty($user->accepted_policies_at);
+
+        // Utilisateur a tout complété
+        if ($hasBoisson && $hasQuizAnswer && $hasAcceptedPolicies) {
+            return response()->json([
+                'status'  => 'COMPLETE',
+                'name'    => $user->name,
+                'phone'   => $user->phone,
+                'user_id' => $user->id,
+                'boisson_preferee' => $user->boisson_preferee,
+                'quiz_answer' => $user->quiz_answer,
+                'accepted_policies_at' => $user->accepted_policies_at?->format('d/m/Y à H:i'),
+                'opted_in_at' => $user->opted_in_at?->format('d/m/Y à H:i'),
+                'message' => 'User has completed all questions',
+                'completion_summary' => "🎉 Tu as déjà participé !\n\n" .
+                    "📋 Voici tes réponses :\n\n" .
+                    "🥤 Boisson préférée : {$user->boisson_preferee}\n" .
+                    "⚽ Quiz FIF : {$user->quiz_answer}\n" .
+                    "✅ Politiques acceptées le : " . ($user->accepted_policies_at ? $user->accepted_policies_at->format('d/m/Y à H:i') : 'N/A') . "\n\n" .
+                    "🍀 Résultats bientôt disponibles !"
+            ]);
+        }
+
+        // Utilisateur incomplet
         return response()->json([
-            'status'  => 'INSCRIT',
-            'name'    => $user->name,
+            'status'  => 'INCOMPLETE',
+            'name'    => $user->name ?? 'Participant_' . substr($phone, -4),
             'phone'   => $user->phone,
             'user_id' => $user->id,
-            'has_boisson_preferee' => !empty($user->boisson_preferee),
+            'has_boisson_preferee' => $hasBoisson,
+            'has_quiz_answer' => $hasQuizAnswer,
+            'has_accepted_policies' => $hasAcceptedPolicies,
             'boisson_preferee' => $user->boisson_preferee,
+            'quiz_answer' => $user->quiz_answer,
+            'message' => 'User exists but has not completed all questions',
         ]);
     }
 

@@ -34,6 +34,28 @@ class UserController extends Controller
             }
         }
 
+        // Filtre par réponse quiz
+        if ($request->has('quiz_answer') && $request->quiz_answer != '') {
+            try {
+                $query->where('quiz_answer', $request->quiz_answer);
+            } catch (\Exception $e) {
+                // Ignorer si la colonne n'existe pas encore
+            }
+        }
+
+        // Filtre par acceptation des politiques
+        if ($request->has('has_accepted_policies') && $request->has_accepted_policies != '') {
+            try {
+                if ($request->has_accepted_policies === 'yes') {
+                    $query->whereNotNull('accepted_policies_at');
+                } else {
+                    $query->whereNull('accepted_policies_at');
+                }
+            } catch (\Exception $e) {
+                // Ignorer si la colonne n'existe pas encore
+            }
+        }
+
         $users = $query->orderBy('created_at', 'desc')->paginate(15);
         $villages = Village::where('is_active', true)->get();
 
@@ -49,7 +71,17 @@ class UserController extends Controller
             $boissons = collect([]);
         }
 
-        return view('admin.users.index', compact('users', 'villages', 'boissons'));
+        // Récupérer les réponses quiz distinctes
+        try {
+            $quizAnswers = User::whereNotNull('quiz_answer')
+                ->distinct()
+                ->pluck('quiz_answer')
+                ->sort();
+        } catch (\Exception $e) {
+            $quizAnswers = collect([]);
+        }
+
+        return view('admin.users.index', compact('users', 'villages', 'boissons', 'quizAnswers'));
     }
 
     public function show(User $user)
