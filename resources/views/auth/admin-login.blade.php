@@ -4,7 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Connexion Admin - CAN 2025 Solibra</title>
+
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
     <style>
         * {
             margin: 0;
@@ -47,9 +49,14 @@
             height: 64px;
             background: #1e40af;
             border-radius: 12px;
-            font-size: 2rem;
             margin-bottom: 1.5rem;
             box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
+        }
+
+        .login-logo-img {
+            width: 36px;
+            height: 36px;
+            object-fit: contain;
         }
 
         .login-title {
@@ -191,31 +198,31 @@
         }
     </style>
 </head>
+
 <body>
     <div class="login-container">
         <div class="login-card">
+
             <!-- Header -->
-           <div class="login-header">
-    
-    <!-- Logo -->
-    <div class="login-logo">
-        <img
-            src="/images/logo_solibra.png"
-            alt="Logo Solibra"
-            class="h-20 w-20 object-contain mx-auto"
-        />
-    </div>
+            <div class="login-header">
+                <div class="login-logo">
+                    <img
+                        src="/images/logo_solibra.png"
+                        alt="Logo Solibra"
+                        class="login-logo-img"
+                    />
+                </div>
 
-    <h1 class="login-title">CAN 2025 Solibra</h1>
-    <p class="login-subtitle">Espace d'administration</p>
-</div>
-
+                <h1 class="login-title">CAN 2025 Solibra</h1>
+                <p class="login-subtitle">Espace d'administration</p>
+            </div>
 
             <!-- Error Alert -->
             @if($errors->any())
             <div class="alert alert-error">
                 <svg class="alert-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
                 <div>
                     @foreach($errors->all() as $error)
@@ -228,7 +235,7 @@
             <!-- Form -->
             <form method="POST" action="{{ route('admin.login') }}">
                 @csrf
-                <!-- Email -->
+
                 <div class="form-group">
                     <label for="email" class="form-label">Adresse email</label>
                     <input
@@ -243,7 +250,6 @@
                     >
                 </div>
 
-                <!-- Password -->
                 <div class="form-group">
                     <label for="password" class="form-label">Mot de passe</label>
                     <input
@@ -256,13 +262,11 @@
                     >
                 </div>
 
-                <!-- Remember Me -->
                 <div class="form-checkbox">
                     <input id="remember" type="checkbox" name="remember">
                     <label for="remember">Se souvenir de moi</label>
                 </div>
 
-                <!-- Submit Button -->
                 <button type="submit" class="btn">
                     Se connecter
                 </button>
@@ -270,28 +274,10 @@
 
             <!-- Footer -->
             <div class="footer">
-                <p>© 2024 CAN 2025 Solibra. Tous droits réservés.</p>
+                <p>© 2025 CAN 2025 Solibra. Tous droits réservés.</p>
             </div>
+
         </div>
     </div>
-
-    <script>
-        // Animation légère sur focus des inputs
-        document.querySelectorAll('.form-input').forEach(input => {
-            input.addEventListener('focus', function() {
-                const label = this.parentElement.querySelector('.form-label');
-                if (label) {
-                    label.style.color = '#1e40af';
-                }
-            });
-
-            input.addEventListener('blur', function() {
-                const label = this.parentElement.querySelector('.form-label');
-                if (label) {
-                    label.style.color = '#374151';
-                }
-            });
-        });
-    </script>
 </body>
 </html>
