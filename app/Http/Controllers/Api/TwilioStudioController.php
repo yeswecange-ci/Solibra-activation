@@ -191,6 +191,89 @@ class TwilioStudioController extends Controller
     }
 
     /**
+     * Endpoint: POST /api/can/inscription-simple
+     * Inscription simplifiée pour le flow Twilio Studio (sans demande de nom)
+     */
+    public function inscriptionSimple(Request $request)
+    {
+        $validated = $request->validate([
+            'phone'     => 'required|string',
+            'answer_1'  => 'required|string', // Boisson préférée
+            'answer_2'  => 'required|string', // Réponse au quiz
+            'status'    => 'nullable|string',
+            'timestamp' => 'nullable|string',
+        ]);
+
+        $phone = $this->formatPhone($validated['phone']);
+
+        // Vérifier si l'utilisateur existe déjà
+        $user = User::where('phone', $phone)->first();
+
+        if ($user) {
+            // Utilisateur existe - mise à jour
+            $user->update([
+                'boisson_preferee'    => $validated['answer_1'],
+                'quiz_answer'         => $validated['answer_2'],
+                'registration_status' => 'INSCRIT',
+                'opted_in_at'         => now(),
+                'is_active'           => true,
+            ]);
+
+            Log::info('Twilio Studio - User updated (simple flow)', [
+                'user_id' => $user->id,
+                'phone'   => $phone,
+            ]);
+        } else {
+            // Nouvel utilisateur - créer avec nom générique
+            $defaultVillage = Village::where('is_active', true)->first();
+
+            if (!$defaultVillage) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No active village available',
+                ], 400);
+            }
+
+            $user = User::create([
+                'phone'               => $phone,
+                'name'                => 'Participant_' . substr($phone, -4), // Nom générique
+                'boisson_preferee'    => $validated['answer_1'],
+                'quiz_answer'         => $validated['answer_2'],
+                'village_id'          => $defaultVillage->id,
+                'source_type'         => 'WHATSAPP_FLOW',
+                'source_detail'       => 'FlowSimpleSocialV2',
+                'scan_timestamp'      => $validated['timestamp'] ?? now(),
+                'registration_status' => 'INSCRIT',
+                'opted_in_at'         => now(),
+                'is_active'           => true,
+            ]);
+
+            Log::info('Twilio Studio - New user registered (simple flow)', [
+                'user_id'    => $user->id,
+                'phone'      => $phone,
+                'village_id' => $defaultVillage->id,
+            ]);
+        }
+
+        // Mettre à jour la session
+        $session = ConversationSession::where('phone', $phone)->first();
+        if ($session) {
+            $session->update([
+                'state'         => ConversationSession::STATE_REGISTERED,
+                'user_id'       => $user->id,
+                'last_activity' => now(),
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'User registered successfully',
+            'user_id' => $user->id,
+            'name'    => $user->name,
+        ]);
+    }
+
+    /**
      * Endpoint: POST /api/can/refus
      * Log du refus d'opt-in
      */

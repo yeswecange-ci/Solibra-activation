@@ -31,6 +31,7 @@ Route::prefix('can')->group(function () {
     Route::post('/scan', [TwilioStudioController::class, 'scan'])->name('api.can.scan');
     Route::post('/optin', [TwilioStudioController::class, 'optin'])->name('api.can.optin');
     Route::post('/inscription', [TwilioStudioController::class, 'inscription'])->name('api.can.inscription');
+    Route::post('/inscription-simple', [TwilioStudioController::class, 'inscriptionSimple'])->name('api.can.inscription-simple');
     Route::post('/refus', [TwilioStudioController::class, 'refus'])->name('api.can.refus');
     Route::post('/stop', [TwilioStudioController::class, 'stop'])->name('api.can.stop');
     Route::post('/abandon', [TwilioStudioController::class, 'abandon'])->name('api.can.abandon');

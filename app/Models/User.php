@@ -14,6 +14,7 @@ class User extends Authenticatable
         'phone',
         'name',
         'boisson_preferee',
+        'quiz_answer',
         'village_id',
         'source_type',
         'source_detail',
