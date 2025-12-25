@@ -7,17 +7,31 @@
 >
     <!-- Logo/Brand Section -->
     <div class="flex-shrink-0 border-b border-gray-200 transition-all duration-300"
-         :class="expanded ? 'p-6' : 'p-4'">
-        <div class="flex items-center" :class="expanded ? 'space-x-3' : 'justify-center'">
-            <div class="text-3xl">🦁</div>
-            <div x-show="expanded" x-transition:enter="transition ease-out duration-200"
-                 x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
-                 class="overflow-hidden">
-                <h1 class="text-lg font-bold text-navy-800">FOOT 2025</h1>
-                <p class="text-gray-500 text-xs">Solibra</p>
-            </div>
+     :class="expanded ? 'p-6' : 'p-4'">
+    
+    <div class="flex items-center" :class="expanded ? 'space-x-3' : 'justify-center'">
+        
+        <!-- Logo -->
+        <img
+            src="/images/logo_solibra.png"
+            alt="Logo Solibra"
+            class="h-10 w-10 object-contain transition-all duration-300"
+            :class="expanded ? 'h-10 w-10' : 'h-8 w-8'"
+        />
+
+        <!-- Texte affiché seulement quand expanded = true -->
+        <div x-show="expanded"
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0"
+             x-transition:enter-end="opacity-100"
+             class="overflow-hidden">
+            
+            <h1 class="text-lg font-bold text-navy-800">FOOT 2025</h1>
+            <p class="text-gray-500 text-xs">Solibra</p>
         </div>
     </div>
+</div>
+
 
     <!-- Navigation Items -->
     <nav class="flex-1 overflow-y-auto py-4 px-3 space-y-1">

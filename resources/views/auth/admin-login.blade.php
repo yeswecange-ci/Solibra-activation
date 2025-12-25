@@ -195,11 +195,21 @@
     <div class="login-container">
         <div class="login-card">
             <!-- Header -->
-            <div class="login-header">
-                <div class="login-logo">🦁</div>
-                <h1 class="login-title">CAN 2025 Solibra</h1>
-                <p class="login-subtitle">Espace d'administration</p>
-            </div>
+           <div class="login-header">
+    
+    <!-- Logo -->
+    <div class="login-logo">
+        <img
+            src="/images/logo_solibra.png"
+            alt="Logo Solibra"
+            class="h-20 w-20 object-contain mx-auto"
+        />
+    </div>
+
+    <h1 class="login-title">CAN 2025 Solibra</h1>
+    <p class="login-subtitle">Espace d'administration</p>
+</div>
+
 
             <!-- Error Alert -->
             @if($errors->any())
