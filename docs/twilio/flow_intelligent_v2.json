@@ -1,0 +1,1287 @@
+{
+  "description": "FlowIntelligentV2 - Flow intelligent avec détection d'état et reprise",
+  "states": [
+    {
+      "name": "Trigger",
+      "type": "trigger",
+      "transitions": [
+        {
+          "event": "incomingMessage"
+        },
+        {
+          "event": "incomingCall"
+        },
+        {
+          "event": "incomingConversationMessage"
+        },
+        {
+          "event": "incomingRequest"
+        },
+        {
+          "next": "set_phone",
+          "event": "incomingParent"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": -150,
+          "y": -160
+        }
+      }
+    },
+    {
+      "name": "set_phone",
+      "type": "set-variables",
+      "transitions": [
+        {
+          "next": "check_stop_keyword",
+          "event": "next"
+        }
+      ],
+      "properties": {
+        "variables": [
+          {
+            "type": "string",
+            "value": "{{trigger.message.From}}",
+            "key": "phone_number"
+          },
+          {
+            "type": "string",
+            "value": "{{trigger.message.Body}}",
+            "key": "user_message"
+          },
+          {
+            "type": "string",
+            "value": "{{now | date: '%Y-%m-%d %H:%M:%S'}}",
+            "key": "timestamp"
+          }
+        ],
+        "offset": {
+          "x": 100,
+          "y": 210
+        }
+      }
+    },
+    {
+      "name": "check_stop_keyword",
+      "type": "split-based-on",
+      "transitions": [
+        {
+          "next": "http_check_user",
+          "event": "noMatch"
+        },
+        {
+          "next": "http_log_stop",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "STOP demandé",
+              "arguments": [
+                "{{trigger.message.Body}}"
+              ],
+              "type": "matches_any_of",
+              "value": "STOP,stop,Stop,ARRET,arret,Arret"
+            }
+          ]
+        }
+      ],
+      "properties": {
+        "input": "{{trigger.message.Body}}",
+        "offset": {
+          "x": 0,
+          "y": 400
+        }
+      }
+    },
+    {
+      "name": "http_check_user",
+      "type": "make-http-request",
+      "transitions": [
+        {
+          "next": "check_user_status",
+          "event": "success"
+        },
+        {
+          "next": "send_message_1",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": -200,
+          "y": 620
+        },
+        "method": "POST",
+        "content_type": "application/json",
+        "add_twilio_auth": false,
+        "body": "{\"phone\": \"{{flow.variables.phone_number}}\"}",
+        "url": "http://localhost/api/can/check-user"
+      }
+    },
+    {
+      "name": "check_user_status",
+      "type": "split-based-on",
+      "transitions": [
+        {
+          "next": "send_message_1",
+          "event": "noMatch"
+        },
+        {
+          "next": "send_message_1",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "Nouvel utilisateur",
+              "arguments": [
+                "{{widgets.http_check_user.parsed.status}}"
+              ],
+              "type": "equal_to",
+              "value": "NOT_FOUND"
+            }
+          ]
+        },
+        {
+          "next": "msg_already_complete",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "Déjà tout complété",
+              "arguments": [
+                "{{widgets.http_check_user.parsed.status}}"
+              ],
+              "type": "equal_to",
+              "value": "COMPLETE"
+            }
+          ]
+        },
+        {
+          "next": "check_what_is_missing",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "Inscription incomplète",
+              "arguments": [
+                "{{widgets.http_check_user.parsed.status}}"
+              ],
+              "type": "equal_to",
+              "value": "INCOMPLETE"
+            }
+          ]
+        },
+        {
+          "next": "msg_reactivation",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "Ancien STOP",
+              "arguments": [
+                "{{widgets.http_check_user.parsed.status}}"
+              ],
+              "type": "equal_to",
+              "value": "STOP"
+            }
+          ]
+        }
+      ],
+      "properties": {
+        "input": "{{widgets.http_check_user.parsed.status}}",
+        "offset": {
+          "x": 0,
+          "y": 800
+        }
+      }
+    },
+    {
+      "name": "msg_already_complete",
+      "type": "send-message",
+      "transitions": [
+        {
+          "next": "end_already_complete",
+          "event": "sent"
+        },
+        {
+          "next": "end_already_complete",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 500,
+          "y": 1000
+        },
+        "from": "{{flow.channel.address}}",
+        "to": "{{contact.channel.address}}",
+        "body": "{{widgets.http_check_user.parsed.completion_summary}}"
+      }
+    },
+    {
+      "name": "check_what_is_missing",
+      "type": "split-based-on",
+      "transitions": [
+        {
+          "next": "msg_question_2",
+          "event": "noMatch"
+        },
+        {
+          "next": "msg_question_1",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "Manque boisson",
+              "arguments": [
+                "{{widgets.http_check_user.parsed.has_boisson_preferee}}"
+              ],
+              "type": "equal_to",
+              "value": "false"
+            }
+          ]
+        },
+        {
+          "next": "msg_question_2",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "Manque quiz",
+              "arguments": [
+                "{{widgets.http_check_user.parsed.has_quiz_answer}}"
+              ],
+              "type": "equal_to",
+              "value": "false"
+            }
+          ]
+        },
+        {
+          "next": "msg_pdf_validation",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "Manque politiques",
+              "arguments": [
+                "{{widgets.http_check_user.parsed.has_accepted_policies}}"
+              ],
+              "type": "equal_to",
+              "value": "false"
+            }
+          ]
+        }
+      ],
+      "properties": {
+        "input": "{{widgets.http_check_user.parsed.has_boisson_preferee}}",
+        "offset": {
+          "x": 1000,
+          "y": 1000
+        }
+      }
+    },
+    {
+      "name": "msg_reactivation",
+      "type": "send-and-wait-for-reply",
+      "transitions": [
+        {
+          "next": "check_reactivation",
+          "event": "incomingMessage"
+        },
+        {
+          "next": "end_timeout",
+          "event": "timeout"
+        },
+        {
+          "next": "end_error",
+          "event": "deliveryFailure"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 1500,
+          "y": 1000
+        },
+        "from": "{{flow.channel.address}}",
+        "body": "Salut ! Tu veux participer à nouveau ? Tape OUI ou NON.",
+        "timeout": "3600"
+      }
+    },
+    {
+      "name": "check_reactivation",
+      "type": "split-based-on",
+      "transitions": [
+        {
+          "next": "msg_reste_stop",
+          "event": "noMatch"
+        },
+        {
+          "next": "http_log_reactivate",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "OUI réactivation",
+              "arguments": [
+                "{{widgets.msg_reactivation.inbound.Body}}"
+              ],
+              "type": "matches_any_of",
+              "value": "OUI,oui,Oui,O,o,YES,yes,Yes,OK,ok,Ok,1"
+            }
+          ]
+        },
+        {
+          "next": "msg_reste_stop",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "NON reste stop",
+              "arguments": [
+                "{{widgets.msg_reactivation.inbound.Body}}"
+              ],
+              "type": "matches_any_of",
+              "value": "NON,non,Non,N,n,NO,no,No,0,STOP,stop,Stop"
+            }
+          ]
+        }
+      ],
+      "properties": {
+        "input": "{{widgets.msg_reactivation.inbound.Body}}",
+        "offset": {
+          "x": 1500,
+          "y": 1250
+        }
+      }
+    },
+    {
+      "name": "http_log_reactivate",
+      "type": "make-http-request",
+      "transitions": [
+        {
+          "next": "send_message_1",
+          "event": "success"
+        },
+        {
+          "next": "send_message_1",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 1500,
+          "y": 1500
+        },
+        "method": "POST",
+        "content_type": "application/json",
+        "add_twilio_auth": false,
+        "body": "{\"phone\": \"{{flow.variables.phone_number}}\", \"status\": \"REACTIVATED\", \"timestamp\": \"{{flow.variables.timestamp}}\"}",
+        "url": "http://localhost/api/can/reactivate"
+      }
+    },
+    {
+      "name": "msg_reste_stop",
+      "type": "send-message",
+      "transitions": [
+        {
+          "next": "end_stop",
+          "event": "sent"
+        },
+        {
+          "next": "end_stop",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 1900,
+          "y": 1500
+        },
+        "from": "{{flow.channel.address}}",
+        "to": "{{contact.channel.address}}",
+        "body": "OK, pas de souci ! À bientôt chez SOLIBRA ! 👋"
+      }
+    },
+    {
+      "name": "send_message_1",
+      "type": "send-message",
+      "transitions": [
+        {
+          "next": "function_1",
+          "event": "sent"
+        },
+        {
+          "next": "function_1",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": -610,
+          "y": 830
+        },
+        "service": "{{trigger.message.InstanceSid}}",
+        "channel": "{{trigger.message.ChannelSid}}",
+        "from": "{{flow.channel.address}}",
+        "to": "{{contact.channel.address}}",
+        "body": "👋 Salut !\n\n⚽🎯 Réponds à 2 questions et gagne ton PASS VIP pour 2 aux Villages Foot SOLIBRA !\n\n🍻 Consommation gratuite incluse !",
+        "media_url": "https://solibra-function-1843.twil.io/605903281_1305042361661065_6314426131752257762_n.jpg"
+      }
+    },
+    {
+      "name": "function_1",
+      "type": "run-function",
+      "transitions": [
+        {
+          "next": "msg_question_1",
+          "event": "success"
+        },
+        {
+          "next": "msg_question_1",
+          "event": "fail"
+        }
+      ],
+      "properties": {
+        "service_sid": "ZSe20880a2825fb4333093bc70ae19adf6",
+        "environment_sid": "ZEb3db1519c6a9a90ac260070fd9cbd054",
+        "offset": {
+          "x": -530,
+          "y": 1040
+        },
+        "function_sid": "ZH294a45225cc97005f036e1fdcd8f808d",
+        "url": "https://solibra-function-1843.twil.io/delay_2"
+      }
+    },
+    {
+      "name": "msg_question_1",
+      "type": "send-and-wait-for-reply",
+      "transitions": [
+        {
+          "next": "set_last_drink_input",
+          "event": "incomingMessage"
+        },
+        {
+          "next": "http_log_timeout",
+          "event": "timeout"
+        },
+        {
+          "next": "http_log_error",
+          "event": "deliveryFailure"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": -150,
+          "y": 1250
+        },
+        "from": "{{flow.channel.address}}",
+        "body": "QUESTION 1/2 🥤\n\nQuelle est ta boisson SOLIBRA préférée ?",
+        "timeout": "3600"
+      }
+    },
+    {
+      "name": "set_last_drink_input",
+      "type": "set-variables",
+      "transitions": [
+        {
+          "next": "run_function_validate_drink",
+          "event": "next"
+        }
+      ],
+      "properties": {
+        "variables": [
+          {
+            "type": "string",
+            "value": "{{widgets.msg_question_1.inbound.Body}}",
+            "key": "last_drink_input"
+          }
+        ],
+        "offset": {
+          "x": -150,
+          "y": 1500
+        }
+      }
+    },
+    {
+      "name": "run_function_validate_drink",
+      "type": "run-function",
+      "transitions": [
+        {
+          "next": "check_drink_valid",
+          "event": "success"
+        },
+        {
+          "next": "msg_drink_invalid_part1",
+          "event": "fail"
+        }
+      ],
+      "properties": {
+        "service_sid": "ZSe20880a2825fb4333093bc70ae19adf6",
+        "environment_sid": "ZEb3db1519c6a9a90ac260070fd9cbd054",
+        "offset": {
+          "x": -150,
+          "y": 1750
+        },
+        "function_sid": "ZH7c9258555eb52ab38204b13dc6ceae38",
+        "parameters": [
+          {
+            "value": "{{flow.variables.last_drink_input}}",
+            "key": "user_input"
+          }
+        ],
+        "url": "https://solibra-function-1843.twil.io/validate_solibra_drink"
+      }
+    },
+    {
+      "name": "check_drink_valid",
+      "type": "split-based-on",
+      "transitions": [
+        {
+          "next": "msg_drink_invalid_part1",
+          "event": "noMatch"
+        },
+        {
+          "next": "set_answer_1",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "Boisson valide",
+              "arguments": [
+                "{{widgets.run_function_validate_drink.parsed.is_valid}}"
+              ],
+              "type": "equal_to",
+              "value": "true"
+            }
+          ]
+        }
+      ],
+      "properties": {
+        "input": "{{widgets.run_function_validate_drink.parsed.is_valid}}",
+        "offset": {
+          "x": -150,
+          "y": 2000
+        }
+      }
+    },
+    {
+      "name": "msg_drink_invalid_part1",
+      "type": "send-message",
+      "transitions": [
+        {
+          "next": "msg_drink_invalid_part2",
+          "event": "sent"
+        },
+        {
+          "next": "msg_drink_invalid_part2",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": -590,
+          "y": 2020
+        },
+        "service": "{{trigger.message.InstanceSid}}",
+        "channel": "{{trigger.message.ChannelSid}}",
+        "from": "{{flow.channel.address}}",
+        "to": "{{contact.channel.address}}",
+        "body": "❌ Cette boisson n'est pas dans notre gamme !\n\nChoisis parmi nos boissons SOLIBRA :\n\n🍺 BIÈRES\n1️⃣ BOCK\n2️⃣ CASTEL\n3️⃣ BEAUFORT\n4️⃣ SOMBREROS\n5️⃣ CHILL\n6️⃣ DOPPEL MUNICH\n7️⃣ GUINNESS\n8️⃣ BUDWEISER\n9️⃣ CORONA"
+      }
+    },
+    {
+      "name": "msg_drink_invalid_part2",
+      "type": "send-and-wait-for-reply",
+      "transitions": [
+        {
+          "next": "set_last_drink_input_retry",
+          "event": "incomingMessage"
+        },
+        {
+          "next": "http_log_timeout",
+          "event": "timeout"
+        },
+        {
+          "next": "http_log_error",
+          "event": "deliveryFailure"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": -590,
+          "y": 2340
+        },
+        "from": "{{flow.channel.address}}",
+        "body": "🥤 BOISSONS GAZEUSES \n🔟 YOUKI\n1️⃣1️⃣ WORLD COLA \n1️⃣2️⃣ YOUZOU \n1️⃣3️⃣ ORANGINA \n🍹 ALCOLMIX \n1️⃣4️⃣ RACINES \n1️⃣5️⃣ RACINES FORT \n⚡ BOISSONS ENERGISANTES\n1️⃣6️⃣ DOPPEL ENERGY MALT \n1️⃣7️⃣ XXL ENERGY \n🥛 AUTRES CATEGORIES \n1️⃣8️⃣ MALTA GUINNESS \n🍷VINS \n1️⃣9️⃣ VALPIERRE\n\nTape le nom ou le numéro de ta boisson",
+        "timeout": "1800"
+      }
+    },
+    {
+      "name": "set_last_drink_input_retry",
+      "type": "set-variables",
+      "transitions": [
+        {
+          "next": "run_function_validate_drink",
+          "event": "next"
+        }
+      ],
+      "properties": {
+        "variables": [
+          {
+            "type": "string",
+            "value": "{{widgets.msg_drink_invalid_part2.inbound.Body}}",
+            "key": "last_drink_input"
+          }
+        ],
+        "offset": {
+          "x": -590,
+          "y": 2850
+        }
+      }
+    },
+    {
+      "name": "set_answer_1",
+      "type": "set-variables",
+      "transitions": [
+        {
+          "next": "http_save_answer_1",
+          "event": "next"
+        }
+      ],
+      "properties": {
+        "variables": [
+          {
+            "type": "string",
+            "value": "{{widgets.run_function_validate_drink.parsed.matched_drink}}",
+            "key": "answer_1"
+          }
+        ],
+        "offset": {
+          "x": -150,
+          "y": 2250
+        }
+      }
+    },
+    {
+      "name": "http_save_answer_1",
+      "type": "make-http-request",
+      "transitions": [
+        {
+          "next": "msg_question_2",
+          "event": "success"
+        },
+        {
+          "next": "msg_question_2",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": -150,
+          "y": 2500
+        },
+        "method": "POST",
+        "content_type": "application/json",
+        "add_twilio_auth": false,
+        "body": "{\"phone\": \"{{flow.variables.phone_number}}\", \"answer_1\": \"{{flow.variables.answer_1}}\", \"timestamp\": \"{{flow.variables.timestamp}}\"}",
+        "url": "http://localhost/api/can/inscription-simple"
+      }
+    },
+    {
+      "name": "msg_question_2",
+      "type": "send-and-wait-for-reply",
+      "transitions": [
+        {
+          "next": "set_answer_2",
+          "event": "incomingMessage"
+        },
+        {
+          "next": "http_log_timeout",
+          "event": "timeout"
+        },
+        {
+          "next": "http_log_error",
+          "event": "deliveryFailure"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": -150,
+          "y": 2750
+        },
+        "from": "{{flow.channel.address}}",
+        "body": "QUESTION 2/2 ⚽\n\nBOCK et WORLD COLA sont-ils partenaires de la FIF ?\n\nTape OUI ou NON",
+        "timeout": "3600"
+      }
+    },
+    {
+      "name": "set_answer_2",
+      "type": "set-variables",
+      "transitions": [
+        {
+          "next": "http_save_answer_2",
+          "event": "next"
+        }
+      ],
+      "properties": {
+        "variables": [
+          {
+            "type": "string",
+            "value": "{{widgets.msg_question_2.inbound.Body}}",
+            "key": "answer_2"
+          }
+        ],
+        "offset": {
+          "x": -170,
+          "y": 3000
+        }
+      }
+    },
+    {
+      "name": "http_save_answer_2",
+      "type": "make-http-request",
+      "transitions": [
+        {
+          "next": "msg_pdf_validation",
+          "event": "success"
+        },
+        {
+          "next": "msg_pdf_validation",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": -150,
+          "y": 3250
+        },
+        "method": "POST",
+        "content_type": "application/json",
+        "add_twilio_auth": false,
+        "body": "{\"phone\": \"{{flow.variables.phone_number}}\", \"answer_2\": \"{{flow.variables.answer_2}}\", \"timestamp\": \"{{flow.variables.timestamp}}\"}",
+        "url": "http://localhost/api/can/inscription-simple"
+      }
+    },
+    {
+      "name": "msg_pdf_validation",
+      "type": "send-and-wait-for-reply",
+      "transitions": [
+        {
+          "next": "check_validation",
+          "event": "incomingMessage"
+        },
+        {
+          "next": "http_log_timeout",
+          "event": "timeout"
+        },
+        {
+          "next": "http_log_error",
+          "event": "deliveryFailure"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": -130,
+          "y": 3500
+        },
+        "from": "{{flow.channel.address}}",
+        "body": "📋 Pour confirmer ta participation :\n✅ Valide la politique de confidentialité\n✅ Confirme avoir plus de 18 ans\n✅ Accepte les conditions générales\n👉 Tape OUI pour valider ta participation",
+        "media_url": "https://solibra-function-1843.twil.io/politique-confidentialite-solibra.pdf",
+        "timeout": "3600"
+      }
+    },
+    {
+      "name": "check_validation",
+      "type": "split-based-on",
+      "transitions": [
+        {
+          "next": "msg_relance_validation",
+          "event": "noMatch"
+        },
+        {
+          "next": "http_save_policies",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "OUI accepté",
+              "arguments": [
+                "{{widgets.msg_pdf_validation.inbound.Body}}"
+              ],
+              "type": "matches_any_of",
+              "value": "OUI,oui,Oui,O,o,YES,yes,Yes,OK,ok,Ok,1"
+            }
+          ]
+        },
+        {
+          "next": "http_log_refus",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "NON refusé",
+              "arguments": [
+                "{{widgets.msg_pdf_validation.inbound.Body}}"
+              ],
+              "type": "matches_any_of",
+              "value": "NON,non,Non,N,n,NO,no,No,0"
+            }
+          ]
+        },
+        {
+          "next": "http_log_stop",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "STOP demandé",
+              "arguments": [
+                "{{widgets.msg_pdf_validation.inbound.Body}}"
+              ],
+              "type": "matches_any_of",
+              "value": "STOP,stop,Stop,ARRET,arret,Arret"
+            }
+          ]
+        }
+      ],
+      "properties": {
+        "input": "{{widgets.msg_pdf_validation.inbound.Body}}",
+        "offset": {
+          "x": -150,
+          "y": 3750
+        }
+      }
+    },
+    {
+      "name": "msg_relance_validation",
+      "type": "send-and-wait-for-reply",
+      "transitions": [
+        {
+          "next": "check_validation_relance",
+          "event": "incomingMessage"
+        },
+        {
+          "next": "http_log_timeout",
+          "event": "timeout"
+        },
+        {
+          "next": "http_log_error",
+          "event": "deliveryFailure"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": -650,
+          "y": 4000
+        },
+        "from": "{{flow.channel.address}}",
+        "body": "Je n'ai pas compris ! Tape OUI pour valider ta participation ou NON pour refuser.",
+        "timeout": "1800"
+      }
+    },
+    {
+      "name": "check_validation_relance",
+      "type": "split-based-on",
+      "transitions": [
+        {
+          "next": "http_log_abandon",
+          "event": "noMatch"
+        },
+        {
+          "next": "http_save_policies",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "OUI accepté relance",
+              "arguments": [
+                "{{widgets.msg_relance_validation.inbound.Body}}"
+              ],
+              "type": "matches_any_of",
+              "value": "OUI,oui,Oui,O,o,YES,yes,Yes,OK,ok,Ok,1"
+            }
+          ]
+        },
+        {
+          "next": "http_log_refus",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "NON refusé relance",
+              "arguments": [
+                "{{widgets.msg_relance_validation.inbound.Body}}"
+              ],
+              "type": "matches_any_of",
+              "value": "NON,non,Non,N,n,NO,no,No,0,STOP,stop,Stop"
+            }
+          ]
+        }
+      ],
+      "properties": {
+        "input": "{{widgets.msg_relance_validation.inbound.Body}}",
+        "offset": {
+          "x": -650,
+          "y": 4250
+        }
+      }
+    },
+    {
+      "name": "http_save_policies",
+      "type": "make-http-request",
+      "transitions": [
+        {
+          "next": "msg_confirmation_finale",
+          "event": "success"
+        },
+        {
+          "next": "msg_confirmation_finale",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": -150,
+          "y": 4000
+        },
+        "method": "POST",
+        "content_type": "application/json",
+        "add_twilio_auth": false,
+        "body": "{\"phone\": \"{{flow.variables.phone_number}}\", \"accepted_policies\": true, \"timestamp\": \"{{flow.variables.timestamp}}\"}",
+        "url": "http://localhost/api/can/inscription-simple"
+      }
+    },
+    {
+      "name": "msg_confirmation_finale",
+      "type": "send-message",
+      "transitions": [
+        {
+          "next": "end_success",
+          "event": "sent"
+        },
+        {
+          "next": "end_success",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": -150,
+          "y": 4250
+        },
+        "from": "{{flow.channel.address}}",
+        "to": "{{contact.channel.address}}",
+        "body": "🎊 Félicitations ! 🎊\n\nTu seras contacté(e) en cas de tirage victorieux ! 🍀\n\nPour rester informé(e), abonne-toi à notre chaîne WhatsApp en cliquant ici 👇\nhttps://whatsapp.com/channel/0029VauNQSP35fLqjBaJT72s\n\nNous te remercions et te souhaitons bonne chance pour la sélection en tant que gagnant(e) ! 😊🎉"
+      }
+    },
+    {
+      "name": "http_log_refus",
+      "type": "make-http-request",
+      "transitions": [
+        {
+          "next": "msg_refus",
+          "event": "success"
+        },
+        {
+          "next": "msg_refus",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 350,
+          "y": 4000
+        },
+        "method": "POST",
+        "content_type": "application/json",
+        "add_twilio_auth": false,
+        "body": "{\"phone\": \"{{flow.variables.phone_number}}\", \"status\": \"REFUS\", \"timestamp\": \"{{flow.variables.timestamp}}\"}",
+        "url": "http://localhost/api/can/refus"
+      }
+    },
+    {
+      "name": "msg_refus",
+      "type": "send-message",
+      "transitions": [
+        {
+          "next": "end_refus",
+          "event": "sent"
+        },
+        {
+          "next": "end_refus",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 350,
+          "y": 4250
+        },
+        "from": "{{flow.channel.address}}",
+        "to": "{{contact.channel.address}}",
+        "body": "Pas de problème ! Si tu changes d'avis, reviens nous voir."
+      }
+    },
+    {
+      "name": "http_log_stop",
+      "type": "make-http-request",
+      "transitions": [
+        {
+          "next": "msg_stop",
+          "event": "success"
+        },
+        {
+          "next": "msg_stop",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 500,
+          "y": 600
+        },
+        "method": "POST",
+        "content_type": "application/json",
+        "add_twilio_auth": false,
+        "body": "{\"phone\": \"{{flow.variables.phone_number}}\", \"status\": \"STOP\", \"timestamp\": \"{{flow.variables.timestamp}}\"}",
+        "url": "http://localhost/api/can/stop"
+      }
+    },
+    {
+      "name": "msg_stop",
+      "type": "send-message",
+      "transitions": [
+        {
+          "next": "end_stop",
+          "event": "sent"
+        },
+        {
+          "next": "end_stop",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 500,
+          "y": 850
+        },
+        "from": "{{flow.channel.address}}",
+        "to": "{{contact.channel.address}}",
+        "body": "C'est noté. Tu es désinscrit."
+      }
+    },
+    {
+      "name": "http_log_abandon",
+      "type": "make-http-request",
+      "transitions": [
+        {
+          "next": "msg_abandon",
+          "event": "success"
+        },
+        {
+          "next": "msg_abandon",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": -1150,
+          "y": 4500
+        },
+        "method": "POST",
+        "content_type": "application/json",
+        "add_twilio_auth": false,
+        "body": "{\"phone\": \"{{flow.variables.phone_number}}\", \"status\": \"ABANDON\", \"timestamp\": \"{{flow.variables.timestamp}}\"}",
+        "url": "http://localhost/api/can/abandon"
+      }
+    },
+    {
+      "name": "msg_abandon",
+      "type": "send-message",
+      "transitions": [
+        {
+          "next": "end_abandon",
+          "event": "sent"
+        },
+        {
+          "next": "end_abandon",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": -1150,
+          "y": 4750
+        },
+        "from": "{{flow.channel.address}}",
+        "to": "{{contact.channel.address}}",
+        "body": "Pas de problème ! Si tu veux participer plus tard, envoie-nous un message."
+      }
+    },
+    {
+      "name": "http_log_timeout",
+      "type": "make-http-request",
+      "transitions": [
+        {
+          "next": "end_timeout",
+          "event": "success"
+        },
+        {
+          "next": "end_timeout",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": -1000,
+          "y": 1200
+        },
+        "method": "POST",
+        "content_type": "application/json",
+        "add_twilio_auth": false,
+        "body": "{\"phone\": \"{{flow.variables.phone_number}}\", \"status\": \"TIMEOUT\", \"timestamp\": \"{{flow.variables.timestamp}}\"}",
+        "url": "http://localhost/api/can/timeout"
+      }
+    },
+    {
+      "name": "http_log_error",
+      "type": "make-http-request",
+      "transitions": [
+        {
+          "next": "end_error",
+          "event": "success"
+        },
+        {
+          "next": "end_error",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": -1000,
+          "y": 1450
+        },
+        "method": "POST",
+        "content_type": "application/json",
+        "add_twilio_auth": false,
+        "body": "{\"phone\": \"{{flow.variables.phone_number}}\", \"status\": \"ERROR\", \"timestamp\": \"{{flow.variables.timestamp}}\"}",
+        "url": "http://localhost/api/can/error"
+      }
+    },
+    {
+      "name": "end_success",
+      "type": "set-variables",
+      "transitions": [],
+      "properties": {
+        "variables": [
+          {
+            "type": "string",
+            "value": "INSCRIPTION_COMPLETE",
+            "key": "flow_status"
+          }
+        ],
+        "offset": {
+          "x": -150,
+          "y": 4500
+        }
+      }
+    },
+    {
+      "name": "end_already_complete",
+      "type": "set-variables",
+      "transitions": [],
+      "properties": {
+        "variables": [
+          {
+            "type": "string",
+            "value": "ALREADY_COMPLETE",
+            "key": "flow_status"
+          }
+        ],
+        "offset": {
+          "x": 500,
+          "y": 1250
+        }
+      }
+    },
+    {
+      "name": "end_refus",
+      "type": "set-variables",
+      "transitions": [],
+      "properties": {
+        "variables": [
+          {
+            "type": "string",
+            "value": "REFUS",
+            "key": "flow_status"
+          }
+        ],
+        "offset": {
+          "x": 350,
+          "y": 4500
+        }
+      }
+    },
+    {
+      "name": "end_stop",
+      "type": "set-variables",
+      "transitions": [],
+      "properties": {
+        "variables": [
+          {
+            "type": "string",
+            "value": "STOP",
+            "key": "flow_status"
+          }
+        ],
+        "offset": {
+          "x": 490,
+          "y": 1130
+        }
+      }
+    },
+    {
+      "name": "end_abandon",
+      "type": "set-variables",
+      "transitions": [],
+      "properties": {
+        "variables": [
+          {
+            "type": "string",
+            "value": "ABANDON",
+            "key": "flow_status"
+          }
+        ],
+        "offset": {
+          "x": -1150,
+          "y": 5000
+        }
+      }
+    },
+    {
+      "name": "end_timeout",
+      "type": "set-variables",
+      "transitions": [],
+      "properties": {
+        "variables": [
+          {
+            "type": "string",
+            "value": "TIMEOUT",
+            "key": "flow_status"
+          }
+        ],
+        "offset": {
+          "x": -1000,
+          "y": 1450
+        }
+      }
+    },
+    {
+      "name": "end_error",
+      "type": "set-variables",
+      "transitions": [],
+      "properties": {
+        "variables": [
+          {
+            "type": "string",
+            "value": "ERROR",
+            "key": "flow_status"
+          }
+        ],
+        "offset": {
+          "x": -1000,
+          "y": 1700
+        }
+      }
+    }
+  ],
+  "initial_state": "Trigger",
+  "flags": {
+    "allow_concurrent_calls": true
+  }
+}
