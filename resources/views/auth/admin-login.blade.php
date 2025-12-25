@@ -14,7 +14,7 @@
 
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: #f5f5f5;
+            background: #f3f4f6;
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -29,8 +29,8 @@
 
         .login-card {
             background: white;
-            border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            border-radius: 12px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08);
             padding: 3rem 2.5rem;
         }
 
@@ -39,35 +39,53 @@
             margin-bottom: 2.5rem;
         }
 
+        .login-logo {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 64px;
+            height: 64px;
+            background: #1e40af;
+            border-radius: 12px;
+            font-size: 2rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
+        }
+
         .login-title {
             font-size: 1.75rem;
             font-weight: 700;
-            color: #111827;
+            color: #243b53;
             margin-bottom: 0.5rem;
             letter-spacing: -0.02em;
         }
 
         .login-subtitle {
-            font-size: 0.9rem;
+            font-size: 0.875rem;
             color: #6b7280;
             font-weight: 400;
         }
 
         .alert {
             padding: 1rem;
-            border-radius: 6px;
+            border-radius: 8px;
             margin-bottom: 1.5rem;
             display: flex;
             align-items: flex-start;
             gap: 0.75rem;
             font-size: 0.875rem;
+        }
+
+        .alert-error {
             background: #fef2f2;
             color: #991b1b;
-            border: 1px solid #fecaca;
+            border-left: 4px solid #dc2626;
         }
 
         .alert-icon {
             flex-shrink: 0;
+            width: 20px;
+            height: 20px;
         }
 
         .form-group {
@@ -95,8 +113,8 @@
 
         .form-input:focus {
             outline: none;
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            border-color: #1e40af;
+            box-shadow: 0 0 0 3px rgba(30, 64, 175, 0.1);
         }
 
         .form-input::placeholder {
@@ -116,7 +134,7 @@
             border: 1px solid #d1d5db;
             border-radius: 4px;
             cursor: pointer;
-            accent-color: #3b82f6;
+            accent-color: #1e40af;
         }
 
         .form-checkbox label {
@@ -128,7 +146,7 @@
 
         .btn {
             width: 100%;
-            padding: 0.75rem 1.5rem;
+            padding: 0.875rem 1.5rem;
             font-size: 0.95rem;
             font-weight: 600;
             border: none;
@@ -136,16 +154,18 @@
             cursor: pointer;
             transition: all 0.2s;
             font-family: inherit;
-            background: #3b82f6;
+            background: #1e40af;
             color: white;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.08);
         }
 
         .btn:hover {
-            background: #2563eb;
+            background: #1d4ed8;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
         }
 
         .btn:active {
-            transform: scale(0.98);
+            background: #1e3a8a;
         }
 
         .footer {
@@ -176,26 +196,36 @@
         <div class="login-card">
             <!-- Header -->
             <div class="login-header">
+                <div class="login-logo">🦁</div>
                 <h1 class="login-title">CAN 2025 Solibra</h1>
-                <p class="login-subtitle">Connexion Backoffice</p>
+                <p class="login-subtitle">Espace d'administration</p>
             </div>
 
-            <!-- Alert -->
-            <div class="alert" style="display: none;" id="errorAlert">
-                <span class="alert-icon">⚠</span>
-                <span id="errorMessage"></span>
+            <!-- Error Alert -->
+            @if($errors->any())
+            <div class="alert alert-error">
+                <svg class="alert-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <div>
+                    @foreach($errors->all() as $error)
+                        <p>{{ $error }}</p>
+                    @endforeach
+                </div>
             </div>
+            @endif
 
             <!-- Form -->
-            <form method="POST" action="/admin/login">
+            <form method="POST" action="{{ route('admin.login') }}">
                 @csrf
                 <!-- Email -->
                 <div class="form-group">
-                    <label for="email" class="form-label">Email</label>
+                    <label for="email" class="form-label">Adresse email</label>
                     <input
                         id="email"
                         type="email"
                         name="email"
+                        value="{{ old('email') }}"
                         class="form-input"
                         placeholder="admin@can2025.cd"
                         required
@@ -241,7 +271,7 @@
             input.addEventListener('focus', function() {
                 const label = this.parentElement.querySelector('.form-label');
                 if (label) {
-                    label.style.color = '#3b82f6';
+                    label.style.color = '#1e40af';
                 }
             });
 
