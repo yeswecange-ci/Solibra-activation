@@ -463,80 +463,76 @@ class TwilioStudioController extends Controller
      * Vérifier l'état complet de l'utilisateur (existence, réponses, politiques)
      */
     public function checkUser(Request $request)
-    {
-        $validated = $request->validate([
-            'phone' => 'required|string',
-        ]);
+{
+    $validated = $request->validate([
+        'phone' => 'required|string',
+    ]);
 
-        $phone = $this->formatPhone($validated['phone']);
-        $user  = User::where('phone', $phone)->first();
+    $phone = $this->formatPhone($validated['phone']);
+    $user  = User::where('phone', $phone)->first();
 
-        // Utilisateur n'existe pas
-        if (! $user) {
-            return response()->json([
-                'status'  => 'NOT_FOUND',
-                'message' => 'User not found',
-            ]);
-        }
-
-        // Utilisateur a demandé STOP
-        if (! $user->is_active || $user->registration_status === 'STOP') {
-            return response()->json([
-                'status'  => 'STOP',
-                'name'    => $user->name,
-                'phone'   => $user->phone,
-                'message' => 'User was stopped',
-            ]);
-        }
-
-        // Vérifier l'état de completion
-        // Vérifier que la boisson n'est pas vide et n'est pas juste un numéro
-        $hasBoisson = !empty($user->boisson_preferee) && !is_numeric($user->boisson_preferee);
-        $hasQuizAnswer = !empty($user->quiz_answer);
-        $hasAcceptedPolicies = !empty($user->accepted_policies_at);
-
-        // Utilisateur a tout complété
-        if ($hasBoisson && $hasQuizAnswer && $hasAcceptedPolicies) {
-            return response()->json([
-                'status'  => 'COMPLETE',
-                'name'    => $user->name,
-                'phone'   => $user->phone,
-                'user_id' => $user->id,
-                'boisson_preferee' => $user->boisson_preferee,
-                'quiz_answer' => $user->quiz_answer,
-                'accepted_policies_at' => $user->accepted_policies_at?->format('d/m/Y à H:i'),
-                'opted_in_at' => $user->opted_in_at?->format('d/m/Y à H:i'),
-                'message' => 'User has completed all questions',
-                'completion_summary' => "🎉 Tu as déjà participé !\n\n" .
-                    "📋 Voici tes réponses :\n\n" .
-                    "🥤 Boisson préférée : {$user->boisson_preferee}\n" .
-                    "⚽ Quiz FIF : {$user->quiz_answer}\n" .
-                    "✅ Politiques acceptées le : " . ($user->accepted_policies_at ? $user->accepted_policies_at->format('d/m/Y à H:i') : 'N/A') . "\n\n" .
-                    "🍀 Résultats bientôt disponibles !" .
-                    "\n\nTu seras contacté(e) en cas de tirage victorieux ! 🍀
-
-Pour rester informé(e), abonne-toi à notre chaîne WhatsApp en cliquant ici 👇
-https://whatsapp.com/channel/0029VauNQSP35fLqjBaJT72s
-
-Nous te remercions et te souhaitons bonne chance pour la sélection en tant que gagnant(e) ! 😊🎉"
-            ]);
-        }
-
-        // Utilisateur incomplet
+    // Utilisateur n'existe pas
+    if (! $user) {
         return response()->json([
-            'status'  => 'INCOMPLETE',
-            'name'    => $user->name ?? 'Participant_' . substr($phone, -4),
-            'phone'   => $user->phone,
-            'user_id' => $user->id,
-            'has_boisson_preferee' => $hasBoisson,
-            'has_quiz_answer' => $hasQuizAnswer,
-            'has_accepted_policies' => $hasAcceptedPolicies,
-            'boisson_preferee' => $user->boisson_preferee,
-            'quiz_answer' => $user->quiz_answer,
-            'opted_in_at' => $user->opted_in_at?->format('d/m/Y à H:i'),
-            'message' => 'User exists but has not completed all questions',
+            'status'  => 'NOT_FOUND',
+            'message' => 'User not found',
         ]);
     }
+
+    // Utilisateur a demandé STOP
+    if (! $user->is_active || $user->registration_status === 'STOP') {
+        return response()->json([
+            'status'  => 'STOP',
+            'name'    => $user->name,
+            'phone'   => $user->phone,
+            'message' => 'User was stopped',
+        ]);
+    }
+
+    // Vérifier l'état de completion
+    // Vérifier que la boisson n'est pas vide et n'est pas juste un numéro
+    $hasBoisson = !empty($user->boisson_preferee) && !is_numeric($user->boisson_preferee);
+    $hasQuizAnswer = !empty($user->quiz_answer);
+    $hasAcceptedPolicies = !empty($user->accepted_policies_at);
+
+    // Utilisateur a tout complété
+    if ($hasBoisson && $hasQuizAnswer && $hasAcceptedPolicies) {
+        return response()->json([
+            'status'  => 'COMPLETE',
+            'name'    => $user->name,
+            'phone'   => $user->phone,
+            'user_id' => $user->id,
+            'has_boisson_preferee' => $hasBoisson, // ✅ AJOUTÉ
+            'boisson_preferee' => $user->boisson_preferee,
+            'quiz_answer' => $user->quiz_answer,
+            'accepted_policies_at' => $user->accepted_policies_at?->format('d/m/Y à H:i'),
+            'opted_in_at' => $user->opted_in_at?->format('d/m/Y à H:i'),
+            'message' => 'User has completed all questions',
+            'completion_summary' => "🎉 Tu as déjà participé !\n\n" .
+                "📋 Voici tes réponses :\n\n" .
+                "🥤 Boisson préférée : {$user->boisson_preferee}\n" .
+                "⚽ Quiz FIF : {$user->quiz_answer}\n" .
+                "✅ Politiques acceptées le : " . ($user->accepted_policies_at ? $user->accepted_policies_at->format('d/m/Y à H:i') : 'N/A') . "\n\n" .
+                "🍀 Résultats bientôt disponibles !" .
+                "\n\nTu seras contacté(e) en cas de tirage victorieux ! 🍀\n\nPour rester informé(e), abonne-toi à notre chaîne WhatsApp en cliquant ici 👇\nhttps://whatsapp.com/channel/0029VauNQSP35fLqjBaJT72s\n\nNous te remercions et te souhaitons bonne chance pour la sélection en tant que gagnant(e) ! 😊🎉"
+        ]);
+    }
+
+    // Utilisateur incomplet
+    return response()->json([
+        'status'  => 'INCOMPLETE',
+        'name'    => $user->name ?? 'Participant_' . substr($phone, -4),
+        'phone'   => $user->phone,
+        'user_id' => $user->id,
+        'has_boisson_preferee' => $hasBoisson,
+        'has_quiz_answer' => $hasQuizAnswer,
+        'has_accepted_policies' => $hasAcceptedPolicies,
+        'boisson_preferee' => $user->boisson_preferee,
+        'quiz_answer' => $user->quiz_answer,
+        'opted_in_at' => $user->opted_in_at?->format('d/m/Y à H:i'),
+        'message' => 'User exists but has not completed all questions',
+    ]);
+}
 
     /**
      * Endpoint: POST /api/can/reactivate
