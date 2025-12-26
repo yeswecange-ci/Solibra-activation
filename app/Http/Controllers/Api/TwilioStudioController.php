@@ -768,49 +768,54 @@ Nous te remercions et te souhaitons bonne chance pour la sélection en tant que 
      * Endpoint: GET /api/can/matches/formatted
      * Récupérer la liste des matchs formatée pour WhatsApp (message texte)
      */
-    public function getMatchesFormatted(Request $request)
-    {
-        $limit = $request->input('limit', 5);
-        $days = $request->input('days', 30);
+    /**
+ * Endpoint: GET /api/can/matches/formatted
+ * Récupérer la liste des matchs formatée pour WhatsApp (message texte)
+ */
+public function getMatchesFormatted(Request $request)
+{
+    $limit = $request->input('limit', 5);
+    $days = $request->input('days', 30);
 
-        $now = now();
-        $endDate = now()->addDays($days);
+    $now = now();
+    $endDate = now()->addDays($days);
 
-        $matches = FootballMatch::where('match_date', '>=', $now)
-            ->where('match_date', '<=', $endDate)
-            ->where('pronostic_enabled', true)
-            ->whereIn('status', ['scheduled', 'live'])
-            ->orderBy('match_date', 'asc')
-            ->limit($limit)
-            ->get();
+    $matches = FootballMatch::where('match_date', '>=', $now)
+        ->where('match_date', '<=', $endDate)
+        ->where('pronostic_enabled', true)
+        ->whereIn('status', ['scheduled', 'live'])
+        ->orderBy('match_date', 'asc')
+        ->limit($limit)
+        ->get();
 
-        if ($matches->isEmpty()) {
-            return response()->json([
-                'success'     => true,
-                'has_matches' => false,
-                'message'     => "⚽ Aucun match programmé pour le moment.\n\nRevenez bientôt pour découvrir les prochaines rencontres !",
-            ]);
-        }
+    if ($matches->isEmpty()) {
+        return response()->json([
+            'success'     => true,
+            'has_matches' => false,
+            'message'     => "⚽ Aucun match programmé pour le moment.\n\nRevenez bientôt pour découvrir les prochaines rencontres !",
+        ]);
+    }
 
-        $message = "⚽ *PROCHAINS MATCHS CAN 2025*\n\n";
+    // ✅ CAS 1 : UN SEUL MATCH - Afficher directement les options de pronostic
+    if ($matches->count() === 1) {
+        $match = $matches->first();
+        $date = $match->match_date->format('d/m/Y');
+        $time = $match->match_date->format('H:i');
 
-        foreach ($matches as $index => $match) {
-            $number = $index + 1;
-            $date = $match->match_date->format('d/m/Y');
-            $time = $match->match_date->format('H:i');
-            $pronoStatus = $match->pronostic_enabled ? '✅' : '🔒';
-
-            $message .= "{$number}. {$match->team_a} 🆚 {$match->team_b}\n";
-            $message .= "   📅 {$date} à {$time}\n";
-            $message .= "   {$pronoStatus} Pronostics " . ($match->pronostic_enabled ? 'ouverts' : 'fermés') . "\n\n";
-        }
-
-        $message .= "💡 Envoie le numéro correspondant à ton match pour faire ton pronostic !";
+        $message = "🏆 *TON PRONOSTIC DU MATCH* ⚽\n\n";
+        $message .= "🔥 {$match->team_a} vs {$match->team_b} 🔥\n";
+        $message .= "📅 {$date} à {$time}\n\n";
+        $message .= "👉 Qui va gagner selon toi dès la première mi-temps ?\n\n";
+        $message .= "1️⃣ Victoire {$match->team_a}\n";
+        $message .= "2️⃣ Victoire {$match->team_b}\n";
+        $message .= "3️⃣ 🤝 Match nul\n\n";
+        $message .= "📩 Réponds simplement par 1, 2 ou 3 et valide ton pronostic !";
 
         return response()->json([
             'success'     => true,
             'has_matches' => true,
-            'count'       => $matches->count(),
+            'count'       => 1,
+            'single_match' => true, // ✅ Indicateur pour le flow Twilio
             'message'     => $message,
             'matches'     => $matches->map(function ($match, $index) {
                 return [
@@ -825,6 +830,42 @@ Nous te remercions et te souhaitons bonne chance pour la sélection en tant que 
             }),
         ]);
     }
+
+    // ✅ CAS 2 : PLUSIEURS MATCHS - Afficher la liste avec choix du numéro
+    $message = "⚽ *PROCHAINS MATCHS CAN 2025*\n\n";
+
+    foreach ($matches as $index => $match) {
+        $number = $index + 1;
+        $date = $match->match_date->format('d/m/Y');
+        $time = $match->match_date->format('H:i');
+        $pronoStatus = $match->pronostic_enabled ? '✅' : '🔒';
+
+        $message .= "{$number}. {$match->team_a} 🆚 {$match->team_b}\n";
+        $message .= "   📅 {$date} à {$time}\n";
+        $message .= "   {$pronoStatus} Pronostics " . ($match->pronostic_enabled ? 'ouverts' : 'fermés') . "\n\n";
+    }
+
+    $message .= "💡 Envoie le numéro correspondant à ton match pour faire ton pronostic !";
+
+    return response()->json([
+        'success'     => true,
+        'has_matches' => true,
+        'count'       => $matches->count(),
+        'single_match' => false, // ✅ Indicateur pour le flow Twilio
+        'message'     => $message,
+        'matches'     => $matches->map(function ($match, $index) {
+            return [
+                'id'                => $match->id,
+                'number'            => $index + 1,
+                'team_a'            => $match->team_a,
+                'team_b'            => $match->team_b,
+                'match_date'        => $match->match_date->format('d/m/Y'),
+                'match_time'        => $match->match_date->format('H:i'),
+                'pronostic_enabled' => $match->pronostic_enabled,
+            ];
+        }),
+    ]);
+}
 
     /**
      * Endpoint: GET /api/can/matches/{id}
