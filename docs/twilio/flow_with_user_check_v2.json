@@ -1,0 +1,1395 @@
+{
+  "description": "CAN 2025 - Flow avec vérification utilisateur et pronostics - Compatible avec APIs existantes",
+  "states": [
+    {
+      "name": "Trigger",
+      "type": "trigger",
+      "transitions": [
+        {
+          "event": "incomingMessage"
+        },
+        {
+          "event": "incomingCall"
+        },
+        {
+          "event": "incomingConversationMessage"
+        },
+        {
+          "event": "incomingRequest"
+        },
+        {
+          "next": "set_phone",
+          "event": "incomingParent"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 0,
+          "y": 0
+        }
+      }
+    },
+    {
+      "name": "set_phone",
+      "type": "set-variables",
+      "transitions": [
+        {
+          "next": "http_check_user",
+          "event": "next"
+        }
+      ],
+      "properties": {
+        "variables": [
+          {
+            "type": "string",
+            "value": "{{trigger.message.From}}",
+            "key": "phone_number"
+          }
+        ],
+        "offset": {
+          "x": 0,
+          "y": 220
+        }
+      }
+    },
+    {
+      "name": "http_check_user",
+      "type": "make-http-request",
+      "transitions": [
+        {
+          "next": "check_user_status",
+          "event": "success"
+        },
+        {
+          "next": "msg_welcome_new_user",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 0,
+          "y": 450
+        },
+        "method": "POST",
+        "content_type": "application/json",
+        "add_twilio_auth": false,
+        "body": "{\"phone\":\"{{flow.variables.phone_number}}\"}",
+        "url": "https://app-can-solibra.ywcdigital.com/api/can/check-user"
+      }
+    },
+    {
+      "name": "check_user_status",
+      "type": "split-based-on",
+      "transitions": [
+        {
+          "next": "msg_welcome_new_user",
+          "event": "noMatch"
+        },
+        {
+          "next": "msg_user_stopped",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "Utilisateur STOP",
+              "arguments": [
+                "{{widgets.http_check_user.parsed.status}}"
+              ],
+              "type": "equal_to",
+              "value": "STOP"
+            }
+          ]
+        },
+        {
+          "next": "check_user_has_boisson",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "Utilisateur COMPLETE",
+              "arguments": [
+                "{{widgets.http_check_user.parsed.status}}"
+              ],
+              "type": "equal_to",
+              "value": "COMPLETE"
+            }
+          ]
+        },
+        {
+          "next": "check_user_has_boisson",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "Utilisateur INCOMPLETE",
+              "arguments": [
+                "{{widgets.http_check_user.parsed.status}}"
+              ],
+              "type": "equal_to",
+              "value": "INCOMPLETE"
+            }
+          ]
+        }
+      ],
+      "properties": {
+        "input": "{{widgets.http_check_user.parsed.status}}",
+        "offset": {
+          "x": 0,
+          "y": 680
+        }
+      }
+    },
+    {
+      "name": "msg_user_stopped",
+      "type": "send-message",
+      "transitions": [
+        {
+          "next": "end_success",
+          "event": "sent"
+        },
+        {
+          "next": "end_success",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 600,
+          "y": 920
+        },
+        "from": "{{flow.channel.address}}",
+        "to": "{{contact.channel.address}}",
+        "body": "❌ *Compte désactivé*\n\nTu t'es désabonné de ce service.\n\n📞 Contacte-nous pour réactiver ton compte."
+      }
+    },
+    {
+      "name": "check_user_has_boisson",
+      "type": "split-based-on",
+      "transitions": [
+        {
+          "next": "msg_ask_boisson_existing_user",
+          "event": "noMatch"
+        },
+        {
+          "next": "msg_welcome_existing_user",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "A une boisson préférée",
+              "arguments": [
+                "{{widgets.http_check_user.parsed.has_boisson_preferee}}"
+              ],
+              "type": "equal_to",
+              "value": "true"
+            }
+          ]
+        }
+      ],
+      "properties": {
+        "input": "{{widgets.http_check_user.parsed.has_boisson_preferee}}",
+        "offset": {
+          "x": -400,
+          "y": 920
+        }
+      }
+    },
+    {
+      "name": "msg_welcome_existing_user",
+      "type": "send-message",
+      "transitions": [
+        {
+          "next": "http_get_matchs",
+          "event": "sent"
+        },
+        {
+          "next": "http_get_matchs",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": -600,
+          "y": 1150
+        },
+        "from": "{{flow.channel.address}}",
+        "to": "{{contact.channel.address}}",
+        "body": "👋 *Bon retour {{widgets.http_check_user.parsed.name}} !* 🎉\n\n✅ Inscrit(e) depuis le : {{widgets.http_check_user.parsed.opted_in_at}}\n🍺 Ta boisson préférée : {{widgets.http_check_user.parsed.boisson_preferee}}\n\n⚽ Passons maintenant aux pronostics !"
+      }
+    },
+    {
+      "name": "msg_ask_boisson_existing_user",
+      "type": "send-and-wait-for-reply",
+      "transitions": [
+        {
+          "next": "set_boisson_existing_user",
+          "event": "incomingMessage"
+        },
+        {
+          "next": "msg_timeout_inscription",
+          "event": "timeout"
+        },
+        {
+          "next": "end_success",
+          "event": "deliveryFailure"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": -200,
+          "y": 1150
+        },
+        "from": "{{flow.channel.address}}",
+        "body": "👋 *Bon retour {{widgets.http_check_user.parsed.name}} !* 🎉\n\n🍺 *Quelle est ta boisson SOLIBRA préférée ?*\n\n1️⃣ Flag 🏁\n2️⃣ Castel 🍻\n3️⃣ Awooyo 🌟\n4️⃣ Beaufort 💎\n5️⃣ Guiness 🖤\n\n📩 Réponds par le *numéro* ou le *nom* de ta boisson !",
+        "timeout": "600"
+      }
+    },
+    {
+      "name": "set_boisson_existing_user",
+      "type": "set-variables",
+      "transitions": [
+        {
+          "next": "http_update_boisson_existing_user",
+          "event": "next"
+        }
+      ],
+      "properties": {
+        "variables": [
+          {
+            "type": "string",
+            "value": "{{widgets.msg_ask_boisson_existing_user.inbound.Body}}",
+            "key": "user_boisson"
+          }
+        ],
+        "offset": {
+          "x": -200,
+          "y": 1380
+        }
+      }
+    },
+    {
+      "name": "http_update_boisson_existing_user",
+      "type": "make-http-request",
+      "transitions": [
+        {
+          "next": "msg_boisson_updated",
+          "event": "success"
+        },
+        {
+          "next": "msg_erreur_inscription",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": -200,
+          "y": 1610
+        },
+        "method": "POST",
+        "content_type": "application/json",
+        "add_twilio_auth": false,
+        "body": "{\"phone\":\"{{flow.variables.phone_number}}\",\"boisson_preferee\":\"{{flow.variables.user_boisson}}\"}",
+        "url": "https://app-can-solibra.ywcdigital.com/api/can/set-boisson"
+      }
+    },
+    {
+      "name": "msg_boisson_updated",
+      "type": "send-message",
+      "transitions": [
+        {
+          "next": "http_get_matchs",
+          "event": "sent"
+        },
+        {
+          "next": "http_get_matchs",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": -200,
+          "y": 1840
+        },
+        "from": "{{flow.channel.address}}",
+        "to": "{{contact.channel.address}}",
+        "body": "✅ *Boisson enregistrée !*\n\n🍺 Ta boisson préférée : {{widgets.http_update_boisson_existing_user.parsed.boisson_preferee}}\n\n⚽ Passons maintenant aux pronostics !"
+      }
+    },
+    {
+      "name": "msg_welcome_new_user",
+      "type": "send-and-wait-for-reply",
+      "transitions": [
+        {
+          "next": "set_user_pseudo",
+          "event": "incomingMessage"
+        },
+        {
+          "next": "msg_timeout_inscription",
+          "event": "timeout"
+        },
+        {
+          "next": "end_success",
+          "event": "deliveryFailure"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 400,
+          "y": 920
+        },
+        "from": "{{flow.channel.address}}",
+        "body": "🎉 *BIENVENUE AU JEU PRONOSTICS CAN 2025 !* ⚽\n\n🍀 Participe, pronostique et tente de gagner des lots incroyables !\n\n👤 Pour commencer, quel est ton *pseudo* ou *prénom* ?",
+        "timeout": "600"
+      }
+    },
+    {
+      "name": "msg_timeout_inscription",
+      "type": "send-message",
+      "transitions": [
+        {
+          "next": "end_success",
+          "event": "sent"
+        },
+        {
+          "next": "end_success",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 1000,
+          "y": 1150
+        },
+        "from": "{{flow.channel.address}}",
+        "to": "{{contact.channel.address}}",
+        "body": "⏱️ Temps écoulé ! Relance le processus pour t'inscrire."
+      }
+    },
+    {
+      "name": "set_user_pseudo",
+      "type": "set-variables",
+      "transitions": [
+        {
+          "next": "msg_ask_boisson",
+          "event": "next"
+        }
+      ],
+      "properties": {
+        "variables": [
+          {
+            "type": "string",
+            "value": "{{widgets.msg_welcome_new_user.inbound.Body}}",
+            "key": "user_pseudo"
+          }
+        ],
+        "offset": {
+          "x": 400,
+          "y": 1180
+        }
+      }
+    },
+    {
+      "name": "msg_ask_boisson",
+      "type": "send-and-wait-for-reply",
+      "transitions": [
+        {
+          "next": "set_user_boisson",
+          "event": "incomingMessage"
+        },
+        {
+          "next": "msg_timeout_inscription",
+          "event": "timeout"
+        },
+        {
+          "next": "end_success",
+          "event": "deliveryFailure"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 400,
+          "y": 1410
+        },
+        "from": "{{flow.channel.address}}",
+        "body": "🍺 *Quelle est ta boisson SOLIBRA préférée ?*\n\n1️⃣ Flag 🏁\n2️⃣ Castel 🍻\n3️⃣ Awooyo 🌟\n4️⃣ Beaufort 💎\n5️⃣ Guiness 🖤\n\n📩 Réponds par le *numéro* ou le *nom* de ta boisson !",
+        "timeout": "600"
+      }
+    },
+    {
+      "name": "set_user_boisson",
+      "type": "set-variables",
+      "transitions": [
+        {
+          "next": "http_save_user",
+          "event": "next"
+        }
+      ],
+      "properties": {
+        "variables": [
+          {
+            "type": "string",
+            "value": "{{widgets.msg_ask_boisson.inbound.Body}}",
+            "key": "user_boisson"
+          }
+        ],
+        "offset": {
+          "x": 400,
+          "y": 1670
+        }
+      }
+    },
+    {
+      "name": "http_save_user",
+      "type": "make-http-request",
+      "transitions": [
+        {
+          "next": "check_save_user_success",
+          "event": "success"
+        },
+        {
+          "next": "msg_erreur_inscription",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 400,
+          "y": 1900
+        },
+        "method": "POST",
+        "content_type": "application/json",
+        "add_twilio_auth": false,
+        "body": "{\"phone\":\"{{flow.variables.phone_number}}\",\"name\":\"{{flow.variables.user_pseudo}}\",\"answer_1\":\"{{flow.variables.user_boisson}}\"}",
+        "url": "https://app-can-solibra.ywcdigital.com/api/can/inscription-simple"
+      }
+    },
+    {
+      "name": "check_save_user_success",
+      "type": "split-based-on",
+      "transitions": [
+        {
+          "next": "msg_erreur_inscription",
+          "event": "noMatch"
+        },
+        {
+          "next": "msg_inscription_confirmee",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "Inscription réussie",
+              "arguments": [
+                "{{widgets.http_save_user.parsed.success}}"
+              ],
+              "type": "equal_to",
+              "value": "true"
+            }
+          ]
+        }
+      ],
+      "properties": {
+        "input": "{{widgets.http_save_user.parsed.success}}",
+        "offset": {
+          "x": 400,
+          "y": 2130
+        }
+      }
+    },
+    {
+      "name": "msg_inscription_confirmee",
+      "type": "send-message",
+      "transitions": [
+        {
+          "next": "http_get_matchs",
+          "event": "sent"
+        },
+        {
+          "next": "http_get_matchs",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 200,
+          "y": 2360
+        },
+        "from": "{{flow.channel.address}}",
+        "to": "{{contact.channel.address}}",
+        "body": "✅ *INSCRIPTION RÉUSSIE !* 🎉\n\n👤 Pseudo : {{widgets.http_save_user.parsed.name}}\n🍺 Boisson préférée enregistrée !\n\n⚽ Passons maintenant aux pronostics !"
+      }
+    },
+    {
+      "name": "msg_erreur_inscription",
+      "type": "send-message",
+      "transitions": [
+        {
+          "next": "end_success",
+          "event": "sent"
+        },
+        {
+          "next": "end_success",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 800,
+          "y": 2130
+        },
+        "from": "{{flow.channel.address}}",
+        "to": "{{contact.channel.address}}",
+        "body": "❌ *Erreur lors de l'inscription*\n\nRéessaie plus tard."
+      }
+    },
+    {
+      "name": "http_get_matchs",
+      "type": "make-http-request",
+      "transitions": [
+        {
+          "next": "check_has_matchs",
+          "event": "success"
+        },
+        {
+          "next": "msg_erreur_api",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 0,
+          "y": 2600
+        },
+        "method": "GET",
+        "content_type": "application/x-www-form-urlencoded",
+        "add_twilio_auth": false,
+        "url": "https://app-can-solibra.ywcdigital.com/api/can/matches/formatted?limit=5"
+      }
+    },
+    {
+      "name": "check_has_matchs",
+      "type": "split-based-on",
+      "transitions": [
+        {
+          "next": "msg_aucun_match_disponible",
+          "event": "noMatch"
+        },
+        {
+          "next": "msg_liste_matchs",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "Des matchs disponibles",
+              "arguments": [
+                "{{widgets.http_get_matchs.parsed.has_matches}}"
+              ],
+              "type": "equal_to",
+              "value": "true"
+            }
+          ]
+        }
+      ],
+      "properties": {
+        "input": "{{widgets.http_get_matchs.parsed.has_matches}}",
+        "offset": {
+          "x": 0,
+          "y": 2840
+        }
+      }
+    },
+    {
+      "name": "msg_aucun_match_disponible",
+      "type": "send-message",
+      "transitions": [
+        {
+          "next": "end_success",
+          "event": "sent"
+        },
+        {
+          "next": "end_success",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 600,
+          "y": 3070
+        },
+        "from": "{{flow.channel.address}}",
+        "to": "{{contact.channel.address}}",
+        "body": "❌ *AUCUN MATCH DISPONIBLE*\n\nIl n'y a aucun match ouvert pour les pronostics en ce moment.\n\n📅 Les pronostics seront disponibles dès qu'un nouveau match sera programmé.\n\n🍀 À bientôt pour les prochains matchs !"
+      }
+    },
+    {
+      "name": "msg_erreur_api",
+      "type": "send-message",
+      "transitions": [
+        {
+          "next": "end_success",
+          "event": "sent"
+        },
+        {
+          "next": "end_success",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 600,
+          "y": 2840
+        },
+        "from": "{{flow.channel.address}}",
+        "to": "{{contact.channel.address}}",
+        "body": "❌ Une erreur est survenue. Réessaie dans quelques instants."
+      }
+    },
+    {
+      "name": "msg_liste_matchs",
+      "type": "send-and-wait-for-reply",
+      "transitions": [
+        {
+          "next": "check_choix_match",
+          "event": "incomingMessage"
+        },
+        {
+          "next": "msg_timeout",
+          "event": "timeout"
+        },
+        {
+          "next": "end_success",
+          "event": "deliveryFailure"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": -300,
+          "y": 3070
+        },
+        "from": "{{flow.channel.address}}",
+        "body": "{{widgets.http_get_matchs.parsed.message}}",
+        "timeout": "3600"
+      }
+    },
+    {
+      "name": "msg_timeout",
+      "type": "send-message",
+      "transitions": [
+        {
+          "next": "end_success",
+          "event": "sent"
+        },
+        {
+          "next": "end_success",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": -700,
+          "y": 3300
+        },
+        "from": "{{flow.channel.address}}",
+        "to": "{{contact.channel.address}}",
+        "body": "⏱️ Temps écoulé ! Relance le processus pour faire un nouveau pronostic."
+      }
+    },
+    {
+      "name": "check_choix_match",
+      "type": "split-based-on",
+      "transitions": [
+        {
+          "next": "msg_choix_invalide",
+          "event": "noMatch"
+        },
+        {
+          "next": "set_match_1",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "Match 1",
+              "arguments": [
+                "{{widgets.msg_liste_matchs.inbound.Body}}"
+              ],
+              "type": "matches_any_of",
+              "value": "1"
+            }
+          ]
+        },
+        {
+          "next": "set_match_2",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "Match 2",
+              "arguments": [
+                "{{widgets.msg_liste_matchs.inbound.Body}}"
+              ],
+              "type": "matches_any_of",
+              "value": "2"
+            }
+          ]
+        },
+        {
+          "next": "set_match_3",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "Match 3",
+              "arguments": [
+                "{{widgets.msg_liste_matchs.inbound.Body}}"
+              ],
+              "type": "matches_any_of",
+              "value": "3"
+            }
+          ]
+        },
+        {
+          "next": "set_match_4",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "Match 4",
+              "arguments": [
+                "{{widgets.msg_liste_matchs.inbound.Body}}"
+              ],
+              "type": "matches_any_of",
+              "value": "4"
+            }
+          ]
+        },
+        {
+          "next": "set_match_5",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "Match 5",
+              "arguments": [
+                "{{widgets.msg_liste_matchs.inbound.Body}}"
+              ],
+              "type": "matches_any_of",
+              "value": "5"
+            }
+          ]
+        }
+      ],
+      "properties": {
+        "input": "{{widgets.msg_liste_matchs.inbound.Body}}",
+        "offset": {
+          "x": 0,
+          "y": 3300
+        }
+      }
+    },
+    {
+      "name": "set_match_1",
+      "type": "set-variables",
+      "transitions": [
+        {
+          "next": "http_check_existing_prono",
+          "event": "next"
+        }
+      ],
+      "properties": {
+        "variables": [
+          {
+            "type": "string",
+            "value": "{{widgets.http_get_matchs.parsed.matches[0].id}}",
+            "key": "selected_match_id"
+          },
+          {
+            "type": "string",
+            "value": "{{widgets.http_get_matchs.parsed.matches[0].team_a}}",
+            "key": "selected_team_a"
+          },
+          {
+            "type": "string",
+            "value": "{{widgets.http_get_matchs.parsed.matches[0].team_b}}",
+            "key": "selected_team_b"
+          }
+        ],
+        "offset": {
+          "x": -800,
+          "y": 3550
+        }
+      }
+    },
+    {
+      "name": "set_match_2",
+      "type": "set-variables",
+      "transitions": [
+        {
+          "next": "http_check_existing_prono",
+          "event": "next"
+        }
+      ],
+      "properties": {
+        "variables": [
+          {
+            "type": "string",
+            "value": "{{widgets.http_get_matchs.parsed.matches[1].id}}",
+            "key": "selected_match_id"
+          },
+          {
+            "type": "string",
+            "value": "{{widgets.http_get_matchs.parsed.matches[1].team_a}}",
+            "key": "selected_team_a"
+          },
+          {
+            "type": "string",
+            "value": "{{widgets.http_get_matchs.parsed.matches[1].team_b}}",
+            "key": "selected_team_b"
+          }
+        ],
+        "offset": {
+          "x": -400,
+          "y": 3550
+        }
+      }
+    },
+    {
+      "name": "set_match_3",
+      "type": "set-variables",
+      "transitions": [
+        {
+          "next": "http_check_existing_prono",
+          "event": "next"
+        }
+      ],
+      "properties": {
+        "variables": [
+          {
+            "type": "string",
+            "value": "{{widgets.http_get_matchs.parsed.matches[2].id}}",
+            "key": "selected_match_id"
+          },
+          {
+            "type": "string",
+            "value": "{{widgets.http_get_matchs.parsed.matches[2].team_a}}",
+            "key": "selected_team_a"
+          },
+          {
+            "type": "string",
+            "value": "{{widgets.http_get_matchs.parsed.matches[2].team_b}}",
+            "key": "selected_team_b"
+          }
+        ],
+        "offset": {
+          "x": 0,
+          "y": 3550
+        }
+      }
+    },
+    {
+      "name": "set_match_4",
+      "type": "set-variables",
+      "transitions": [
+        {
+          "next": "http_check_existing_prono",
+          "event": "next"
+        }
+      ],
+      "properties": {
+        "variables": [
+          {
+            "type": "string",
+            "value": "{{widgets.http_get_matchs.parsed.matches[3].id}}",
+            "key": "selected_match_id"
+          },
+          {
+            "type": "string",
+            "value": "{{widgets.http_get_matchs.parsed.matches[3].team_a}}",
+            "key": "selected_team_a"
+          },
+          {
+            "type": "string",
+            "value": "{{widgets.http_get_matchs.parsed.matches[3].team_b}}",
+            "key": "selected_team_b"
+          }
+        ],
+        "offset": {
+          "x": 400,
+          "y": 3550
+        }
+      }
+    },
+    {
+      "name": "set_match_5",
+      "type": "set-variables",
+      "transitions": [
+        {
+          "next": "http_check_existing_prono",
+          "event": "next"
+        }
+      ],
+      "properties": {
+        "variables": [
+          {
+            "type": "string",
+            "value": "{{widgets.http_get_matchs.parsed.matches[4].id}}",
+            "key": "selected_match_id"
+          },
+          {
+            "type": "string",
+            "value": "{{widgets.http_get_matchs.parsed.matches[4].team_a}}",
+            "key": "selected_team_a"
+          },
+          {
+            "type": "string",
+            "value": "{{widgets.http_get_matchs.parsed.matches[4].team_b}}",
+            "key": "selected_team_b"
+          }
+        ],
+        "offset": {
+          "x": 800,
+          "y": 3550
+        }
+      }
+    },
+    {
+      "name": "msg_choix_invalide",
+      "type": "send-message",
+      "transitions": [
+        {
+          "next": "end_success",
+          "event": "sent"
+        },
+        {
+          "next": "end_success",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 1200,
+          "y": 3550
+        },
+        "from": "{{flow.channel.address}}",
+        "to": "{{contact.channel.address}}",
+        "body": "❌ Choix invalide ! On se retrouve bientôt pour les prochains matchs !"
+      }
+    },
+    {
+      "name": "http_check_existing_prono",
+      "type": "make-http-request",
+      "transitions": [
+        {
+          "next": "check_has_existing_prono",
+          "event": "success"
+        },
+        {
+          "next": "msg_options_prono",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 0,
+          "y": 3800
+        },
+        "method": "POST",
+        "content_type": "application/json",
+        "add_twilio_auth": false,
+        "body": "{\"phone\":\"{{flow.variables.phone_number}}\",\"match_id\":{{flow.variables.selected_match_id}}}",
+        "url": "https://app-can-solibra.ywcdigital.com/api/can/check-pronostic"
+      }
+    },
+    {
+      "name": "check_has_existing_prono",
+      "type": "split-based-on",
+      "transitions": [
+        {
+          "next": "msg_options_prono",
+          "event": "noMatch"
+        },
+        {
+          "next": "msg_prono_deja_existe",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "Pronostic existe",
+              "arguments": [
+                "{{widgets.http_check_existing_prono.parsed.has_pronostic}}"
+              ],
+              "type": "equal_to",
+              "value": "true"
+            }
+          ]
+        }
+      ],
+      "properties": {
+        "input": "{{widgets.http_check_existing_prono.parsed.has_pronostic}}",
+        "offset": {
+          "x": 0,
+          "y": 4030
+        }
+      }
+    },
+    {
+      "name": "msg_prono_deja_existe",
+      "type": "send-message",
+      "transitions": [
+        {
+          "next": "end_success",
+          "event": "sent"
+        },
+        {
+          "next": "end_success",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 500,
+          "y": 4260
+        },
+        "from": "{{flow.channel.address}}",
+        "to": "{{contact.channel.address}}",
+        "body": "🚫 *PRONOSTIC DÉJÀ ENREGISTRÉ*\n\n⚽ {{flow.variables.selected_team_a}} vs {{flow.variables.selected_team_b}}\n\n📊 Ton pronostic actuel :\n{{widgets.http_check_existing_prono.parsed.pronostic_details}}\n\n📅 Placé le : {{widgets.http_check_existing_prono.parsed.created_at}}\n\n❌ *Impossible de modifier ton pronostic.*\n\n🍀 À bientôt pour les prochains matchs !"
+      }
+    },
+    {
+      "name": "msg_options_prono",
+      "type": "send-and-wait-for-reply",
+      "transitions": [
+        {
+          "next": "check_choix_prono",
+          "event": "incomingMessage"
+        },
+        {
+          "next": "msg_timeout_prono",
+          "event": "timeout"
+        },
+        {
+          "next": "end_success",
+          "event": "deliveryFailure"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": -400,
+          "y": 4260
+        },
+        "from": "{{flow.channel.address}}",
+        "body": "🏆 TON PRONOSTIC DU MATCH ⚽\n🔥 {{flow.variables.selected_team_a}} vs {{flow.variables.selected_team_b}} 🔥\n\n👉 Qui va gagner selon toi dès la première mi-temps ?\n\n1️⃣ Victoire {{flow.variables.selected_team_a}}\n2️⃣ Victoire {{flow.variables.selected_team_b}}\n3️⃣ 🤝 Match nul\n\n📩 Réponds simplement par 1, 2 ou 3 et valide ton pronostic !",
+        "timeout": "3600"
+      }
+    },
+    {
+      "name": "msg_timeout_prono",
+      "type": "send-message",
+      "transitions": [
+        {
+          "next": "end_success",
+          "event": "sent"
+        },
+        {
+          "next": "end_success",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": -800,
+          "y": 4490
+        },
+        "from": "{{flow.channel.address}}",
+        "to": "{{contact.channel.address}}",
+        "body": "⏱️ Temps écoulé ! Relance le processus pour faire ton pronostic."
+      }
+    },
+    {
+      "name": "check_choix_prono",
+      "type": "split-based-on",
+      "transitions": [
+        {
+          "next": "msg_prono_invalide",
+          "event": "noMatch"
+        },
+        {
+          "next": "set_prono_team_a",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "Victoire équipe A",
+              "arguments": [
+                "{{widgets.msg_options_prono.inbound.Body}}"
+              ],
+              "type": "equal_to",
+              "value": "1"
+            }
+          ]
+        },
+        {
+          "next": "set_prono_team_b",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "Victoire équipe B",
+              "arguments": [
+                "{{widgets.msg_options_prono.inbound.Body}}"
+              ],
+              "type": "equal_to",
+              "value": "2"
+            }
+          ]
+        },
+        {
+          "next": "set_prono_draw",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "Match nul",
+              "arguments": [
+                "{{widgets.msg_options_prono.inbound.Body}}"
+              ],
+              "type": "equal_to",
+              "value": "3"
+            }
+          ]
+        }
+      ],
+      "properties": {
+        "input": "{{widgets.msg_options_prono.inbound.Body}}",
+        "offset": {
+          "x": 0,
+          "y": 4490
+        }
+      }
+    },
+    {
+      "name": "set_prono_team_a",
+      "type": "set-variables",
+      "transitions": [
+        {
+          "next": "http_save_prono",
+          "event": "next"
+        }
+      ],
+      "properties": {
+        "variables": [
+          {
+            "type": "string",
+            "value": "team_a_win",
+            "key": "prediction_type"
+          }
+        ],
+        "offset": {
+          "x": -400,
+          "y": 4720
+        }
+      }
+    },
+    {
+      "name": "set_prono_team_b",
+      "type": "set-variables",
+      "transitions": [
+        {
+          "next": "http_save_prono",
+          "event": "next"
+        }
+      ],
+      "properties": {
+        "variables": [
+          {
+            "type": "string",
+            "value": "team_b_win",
+            "key": "prediction_type"
+          }
+        ],
+        "offset": {
+          "x": 0,
+          "y": 4720
+        }
+      }
+    },
+    {
+      "name": "set_prono_draw",
+      "type": "set-variables",
+      "transitions": [
+        {
+          "next": "http_save_prono",
+          "event": "next"
+        }
+      ],
+      "properties": {
+        "variables": [
+          {
+            "type": "string",
+            "value": "draw",
+            "key": "prediction_type"
+          }
+        ],
+        "offset": {
+          "x": 400,
+          "y": 4720
+        }
+      }
+    },
+    {
+      "name": "msg_prono_invalide",
+      "type": "send-message",
+      "transitions": [
+        {
+          "next": "end_success",
+          "event": "sent"
+        },
+        {
+          "next": "end_success",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 800,
+          "y": 4720
+        },
+        "from": "{{flow.channel.address}}",
+        "to": "{{contact.channel.address}}",
+        "body": "❌ Choix invalide ! Réponds par 1, 2 ou 3."
+      }
+    },
+    {
+      "name": "http_save_prono",
+      "type": "make-http-request",
+      "transitions": [
+        {
+          "next": "check_prono_success",
+          "event": "success"
+        },
+        {
+          "next": "msg_erreur_prono",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 0,
+          "y": 4950
+        },
+        "method": "POST",
+        "content_type": "application/json",
+        "add_twilio_auth": false,
+        "body": "{\"phone\":\"{{flow.variables.phone_number}}\",\"match_id\":{{flow.variables.selected_match_id}},\"prediction_type\":\"{{flow.variables.prediction_type}}\"}",
+        "url": "https://app-can-solibra.ywcdigital.com/api/can/pronostic"
+      }
+    },
+    {
+      "name": "check_prono_success",
+      "type": "split-based-on",
+      "transitions": [
+        {
+          "next": "msg_erreur_prono",
+          "event": "noMatch"
+        },
+        {
+          "next": "msg_confirmation_prono",
+          "event": "match",
+          "conditions": [
+            {
+              "friendly_name": "API Success",
+              "arguments": [
+                "{{widgets.http_save_prono.parsed.success}}"
+              ],
+              "type": "equal_to",
+              "value": "true"
+            }
+          ]
+        }
+      ],
+      "properties": {
+        "input": "{{widgets.http_save_prono.parsed.success}}",
+        "offset": {
+          "x": 0,
+          "y": 5180
+        }
+      }
+    },
+    {
+      "name": "msg_confirmation_prono",
+      "type": "send-message",
+      "transitions": [
+        {
+          "next": "msg_remerciement",
+          "event": "sent"
+        },
+        {
+          "next": "end_success",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": -200,
+          "y": 5410
+        },
+        "from": "{{flow.channel.address}}",
+        "to": "{{contact.channel.address}}",
+        "body": "{{widgets.http_save_prono.parsed.message}}"
+      }
+    },
+    {
+      "name": "msg_erreur_prono",
+      "type": "send-message",
+      "transitions": [
+        {
+          "next": "end_success",
+          "event": "sent"
+        },
+        {
+          "next": "end_success",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": 400,
+          "y": 5180
+        },
+        "from": "{{flow.channel.address}}",
+        "to": "{{contact.channel.address}}",
+        "body": "❌ Erreur : {{widgets.http_save_prono.parsed.message}}"
+      }
+    },
+    {
+      "name": "msg_remerciement",
+      "type": "send-message",
+      "transitions": [
+        {
+          "next": "end_success",
+          "event": "sent"
+        },
+        {
+          "next": "end_success",
+          "event": "failed"
+        }
+      ],
+      "properties": {
+        "offset": {
+          "x": -200,
+          "y": 5640
+        },
+        "service": "{{trigger.message.InstanceSid}}",
+        "channel": "{{trigger.message.ChannelSid}}",
+        "from": "{{flow.channel.address}}",
+        "to": "{{contact.channel.address}}",
+        "body": "Merci pour ta participation 🙌\n\n📢 Nous te tiendrons informé(e) du résultat du match très bientôt.\n\n🍀 Bonne chance !"
+      }
+    },
+    {
+      "name": "end_success",
+      "type": "set-variables",
+      "transitions": [],
+      "properties": {
+        "variables": [
+          {
+            "type": "string",
+            "value": "FLOW_COMPLETE",
+            "key": "flow_status"
+          }
+        ],
+        "offset": {
+          "x": 220,
+          "y": 5880
+        }
+      }
+    }
+  ],
+  "initial_state": "Trigger",
+  "flags": {
+    "allow_concurrent_calls": true
+  }
+}

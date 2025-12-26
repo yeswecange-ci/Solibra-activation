@@ -120,7 +120,7 @@ class TwilioStudioController extends Controller
             ];
 
             if (isset($validated['boisson_preferee'])) {
-                $updateData['boisson_preferee'] = $validated['boisson_preferee'];
+                $updateData['boisson_preferee'] = $this->normalizeDrinkName($validated['boisson_preferee']);
             }
 
             $user->update($updateData);
@@ -159,7 +159,7 @@ class TwilioStudioController extends Controller
             ];
 
             if (isset($validated['boisson_preferee'])) {
-                $userData['boisson_preferee'] = $validated['boisson_preferee'];
+                $userData['boisson_preferee'] = $this->normalizeDrinkName($validated['boisson_preferee']);
             }
 
             $user = User::create($userData);
@@ -219,7 +219,7 @@ class TwilioStudioController extends Controller
         }
 
         if (isset($validated['answer_1'])) {
-            $updateData['boisson_preferee'] = $validated['answer_1'];
+            $updateData['boisson_preferee'] = $this->normalizeDrinkName($validated['answer_1']);
         }
 
         if (isset($validated['answer_2'])) {
@@ -490,7 +490,8 @@ class TwilioStudioController extends Controller
         }
 
         // Vérifier l'état de completion
-        $hasBoisson = !empty($user->boisson_preferee);
+        // Vérifier que la boisson n'est pas vide et n'est pas juste un numéro
+        $hasBoisson = !empty($user->boisson_preferee) && !is_numeric($user->boisson_preferee);
         $hasQuizAnswer = !empty($user->quiz_answer);
         $hasAcceptedPolicies = !empty($user->accepted_policies_at);
 
@@ -526,6 +527,7 @@ class TwilioStudioController extends Controller
             'has_accepted_policies' => $hasAcceptedPolicies,
             'boisson_preferee' => $user->boisson_preferee,
             'quiz_answer' => $user->quiz_answer,
+            'opted_in_at' => $user->opted_in_at?->format('d/m/Y à H:i'),
             'message' => 'User exists but has not completed all questions',
         ]);
     }
@@ -581,20 +583,22 @@ class TwilioStudioController extends Controller
             ], 404);
         }
 
+        $normalizedDrink = $this->normalizeDrinkName($validated['boisson_preferee']);
+
         $user->update([
-            'boisson_preferee' => $validated['boisson_preferee'],
+            'boisson_preferee' => $normalizedDrink,
         ]);
 
         Log::info('Twilio Studio - Boisson préférée enregistrée', [
             'user_id'          => $user->id,
             'phone'            => $phone,
-            'boisson_preferee' => $validated['boisson_preferee'],
+            'boisson_preferee' => $normalizedDrink,
         ]);
 
         return response()->json([
             'success'          => true,
             'message'          => 'Boisson préférée enregistrée',
-            'boisson_preferee' => $user->boisson_preferee,
+            'boisson_preferee' => $normalizedDrink,
         ]);
     }
 
@@ -1401,5 +1405,34 @@ class TwilioStudioController extends Controller
         }
 
         return $phone;
+    }
+
+    /**
+     * Convertir le numéro ou nom de boisson en nom standardisé
+     */
+    private function normalizeDrinkName(?string $input): ?string
+    {
+        if (empty($input)) {
+            return null;
+        }
+
+        $input = trim(strtolower($input));
+
+        // Mapping des boissons
+        $drinks = [
+            '1' => 'Flag',
+            'flag' => 'Flag',
+            '2' => 'Castel',
+            'castel' => 'Castel',
+            '3' => 'Awooyo',
+            'awooyo' => 'Awooyo',
+            '4' => 'Beaufort',
+            'beaufort' => 'Beaufort',
+            '5' => 'Guinness',
+            'guinness' => 'Guinness',
+            'guiness' => 'Guinness',
+        ];
+
+        return $drinks[$input] ?? ucfirst($input);
     }
 }
