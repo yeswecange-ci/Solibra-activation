@@ -60,6 +60,7 @@ Route::prefix('admin')->group(function () {
 
         // Routes Users (Joueurs)
         Route::get('users', [\App\Http\Controllers\Admin\UserController::class, 'index'])->name('admin.users.index');
+        Route::get('users/export/csv', [\App\Http\Controllers\Admin\UserController::class, 'export'])->name('admin.users.export');
         Route::get('users/{user}', [\App\Http\Controllers\Admin\UserController::class, 'show'])->name('admin.users.show');
         Route::delete('users/{user}', [\App\Http\Controllers\Admin\UserController::class, 'destroy'])->name('admin.users.destroy');
 
