@@ -198,6 +198,7 @@ class TwilioStudioController extends Controller
     {
         $validated = $request->validate([
             'phone'     => 'required|string',
+            'name'      => 'nullable|string|min:2', // Nom ou pseudo de l'utilisateur
             'answer_1'  => 'nullable|string', // Boisson préférée
             'answer_2'  => 'nullable|string', // Réponse au quiz
             'accepted_policies' => 'nullable|boolean', // Acceptation des politiques
@@ -212,6 +213,10 @@ class TwilioStudioController extends Controller
 
         // Préparer les données à mettre à jour
         $updateData = [];
+
+        if (isset($validated['name'])) {
+            $updateData['name'] = ucwords(strtolower($validated['name']));
+        }
 
         if (isset($validated['answer_1'])) {
             $updateData['boisson_preferee'] = $validated['answer_1'];
@@ -239,7 +244,7 @@ class TwilioStudioController extends Controller
                 'updated_fields' => array_keys($updateData),
             ]);
         } else {
-            // Nouvel utilisateur - créer avec nom générique
+            // Nouvel utilisateur - créer avec nom fourni ou générique
             $defaultVillage = Village::where('is_active', true)->first();
 
             if (!$defaultVillage) {
@@ -249,9 +254,14 @@ class TwilioStudioController extends Controller
                 ], 400);
             }
 
+            // Utiliser le nom fourni ou générer un nom par défaut
+            $userName = isset($validated['name'])
+                ? ucwords(strtolower($validated['name']))
+                : 'Participant_' . substr($phone, -4);
+
             $userData = array_merge([
                 'phone'               => $phone,
-                'name'                => 'Participant_' . substr($phone, -4), // Nom générique
+                'name'                => $userName,
                 'village_id'          => $defaultVillage->id,
                 'source_type'         => 'WHATSAPP_FLOW',
                 'source_detail'       => 'FlowSimpleSocialV2',
