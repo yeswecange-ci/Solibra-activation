@@ -73,9 +73,13 @@ class Pronostic extends Model
         $actualResult = $this->determineResultType($actualScoreA, $actualScoreB);
 
         // Déterminer le type de résultat prédit
-        // Si prediction_type est défini, l'utiliser directement
+        // Si prediction_type est défini et non vide, l'utiliser directement
         // Sinon, calculer à partir des scores prédits
-        if ($this->prediction_type) {
+        if (!empty($this->prediction_type) && in_array($this->prediction_type, [
+            self::PREDICTION_TEAM_A_WIN,
+            self::PREDICTION_TEAM_B_WIN,
+            self::PREDICTION_DRAW
+        ])) {
             $predictedResult = $this->prediction_type;
         } else {
             $predictedResult = $this->determineResultType(
@@ -118,14 +122,23 @@ class Pronostic extends Model
         }
 
         $actualResult = $this->determineResultType(
-            $this->match->score_a, 
+            $this->match->score_a,
             $this->match->score_b
         );
-        
-        $predictedResult = $this->determineResultType(
-            $this->predicted_score_a, 
-            $this->predicted_score_b
-        );
+
+        // Utiliser prediction_type si défini, sinon calculer depuis les scores
+        if (!empty($this->prediction_type) && in_array($this->prediction_type, [
+            self::PREDICTION_TEAM_A_WIN,
+            self::PREDICTION_TEAM_B_WIN,
+            self::PREDICTION_DRAW
+        ])) {
+            $predictedResult = $this->prediction_type;
+        } else {
+            $predictedResult = $this->determineResultType(
+                $this->predicted_score_a ?? 0,
+                $this->predicted_score_b ?? 0
+            );
+        }
 
         return $actualResult === $predictedResult;
     }
