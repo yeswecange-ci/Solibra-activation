@@ -23,7 +23,24 @@
         <dl class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
                 <dt class="text-sm font-medium text-gray-500">Nom</dt>
-                <dd class="mt-1 text-sm text-gray-900">{{ $user->name }}</dd>
+                <dd class="mt-1 flex items-center gap-2">
+                    <span class="text-sm font-semibold text-gray-900">{{ $user->name }}</span>
+                    @if(!str_starts_with($user->name, 'Participant_'))
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800" title="Nom personnalisé saisi par l'utilisateur">
+                            <svg class="w-3 h-3 mr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                            Nom personnalisé
+                        </span>
+                    @else
+                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600" title="Nom généré automatiquement">
+                            <svg class="w-3 h-3 mr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"></path>
+                            </svg>
+                            Auto-généré
+                        </span>
+                    @endif
+                </dd>
             </div>
 
             <div>
