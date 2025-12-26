@@ -512,7 +512,13 @@ class TwilioStudioController extends Controller
                     "🥤 Boisson préférée : {$user->boisson_preferee}\n" .
                     "⚽ Quiz FIF : {$user->quiz_answer}\n" .
                     "✅ Politiques acceptées le : " . ($user->accepted_policies_at ? $user->accepted_policies_at->format('d/m/Y à H:i') : 'N/A') . "\n\n" .
-                    "🍀 Résultats bientôt disponibles !"
+                    "🍀 Résultats bientôt disponibles !" .
+                    "\n\nTu seras contacté(e) en cas de tirage victorieux ! 🍀
+
+Pour rester informé(e), abonne-toi à notre chaîne WhatsApp en cliquant ici 👇
+https://whatsapp.com/channel/0029VauNQSP35fLqjBaJT72s
+
+Nous te remercions et te souhaitons bonne chance pour la sélection en tant que gagnant(e) ! 😊🎉"
             ]);
         }
 

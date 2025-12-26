@@ -21,7 +21,10 @@
       "Bash(php check_pronostics.php:*)",
       "Bash(php:*)",
       "Bash(powershell -Command:*)",
-      "Bash(composer install:*)"
+      "Bash(composer install:*)",
+      "Bash(npm install:*)",
+      "Bash(git rm:*)",
+      "Bash(python modify_flow_add_name.py:*)"
     ],
     "deny": [],
     "ask": []
