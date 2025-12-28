@@ -95,6 +95,8 @@ Route::prefix('admin')->group(function () {
         // Routes Pronostics
         Route::get('pronostics/stats', [\App\Http\Controllers\Admin\PronosticController::class, 'stats'])
             ->name('admin.pronostics.stats');
+        Route::get('pronostics/export-winners', [\App\Http\Controllers\Admin\PronosticController::class, 'exportWinners'])
+            ->name('admin.pronostics.export-winners');
         Route::get('pronostics', [\App\Http\Controllers\Admin\PronosticController::class, 'index'])
             ->name('admin.pronostics.index');
         Route::get('pronostics/{pronostic}', [\App\Http\Controllers\Admin\PronosticController::class, 'show'])

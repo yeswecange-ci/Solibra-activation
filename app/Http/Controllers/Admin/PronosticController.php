@@ -251,4 +251,89 @@ class PronosticController extends Controller
 
         return view('admin.pronostics.stats', compact('stats'));
     }
+
+    /**
+     * Exporter tous les pronostics gagnants en CSV
+     */
+    public function exportWinners(Request $request)
+    {
+        // Récupérer tous les pronostics gagnants
+        $query = Pronostic::with(['user.village', 'match'])
+            ->where('is_winner', true)
+            ->orderBy('created_at', 'desc');
+
+        // Filtre optionnel par match
+        if ($request->filled('match_id')) {
+            $query->where('match_id', $request->match_id);
+        }
+
+        // Filtre optionnel par type de gain (exact ou bon résultat)
+        if ($request->filled('points_won')) {
+            $query->where('points_won', $request->points_won);
+        }
+
+        $winners = $query->get();
+
+        // Préparer le nom du fichier
+        $filename = 'pronostics_gagnants_' . now()->format('Y-m-d_H-i-s') . '.csv';
+
+        // Créer le CSV
+        $headers = [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+            'Pragma' => 'no-cache',
+            'Cache-Control' => 'must-revalidate, post-check=0, pre-check=0',
+            'Expires' => '0'
+        ];
+
+        $callback = function() use ($winners) {
+            $file = fopen('php://output', 'w');
+
+            // Ajouter le BOM UTF-8 pour Excel
+            fprintf($file, chr(0xEF).chr(0xBB).chr(0xBF));
+
+            // En-têtes du CSV
+            fputcsv($file, [
+                'ID Pronostic',
+                'Date',
+                'Utilisateur',
+                'Téléphone',
+                'Village',
+                'Match',
+                'Score Final',
+                'Pronostic',
+                'Score Prédit',
+                'Type de Gain',
+                'Points Gagnés'
+            ], ';');
+
+            // Lignes de données
+            foreach ($winners as $prono) {
+                fputcsv($file, [
+                    $prono->id,
+                    $prono->created_at->format('d/m/Y H:i'),
+                    $prono->user->name ?? 'N/A',
+                    $prono->user->phone ?? 'N/A',
+                    $prono->user->village->name ?? 'N/A',
+                    "{$prono->match->team_a} vs {$prono->match->team_b}",
+                    "{$prono->match->score_a} - {$prono->match->score_b}",
+                    $prono->prediction_text,
+                    $prono->predicted_score_a !== null && $prono->predicted_score_b !== null
+                        ? "{$prono->predicted_score_a} - {$prono->predicted_score_b}"
+                        : 'N/A',
+                    $prono->points_won === 10 ? 'Score Exact' : 'Bon Résultat',
+                    $prono->points_won
+                ], ';');
+            }
+
+            fclose($file);
+        };
+
+        Log::info('Export des pronostics gagnants', [
+            'total_winners' => $winners->count(),
+            'exported_by' => auth()->user()->name ?? 'N/A',
+        ]);
+
+        return response()->stream($callback, 200, $headers);
+    }
 }
