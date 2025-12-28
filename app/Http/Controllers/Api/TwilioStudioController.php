@@ -801,7 +801,7 @@ public function getMatchesFormatted(Request $request)
         $message = "🏆 *TON PRONOSTIC DU MATCH* ⚽\n\n";
         $message .= "🔥 {$match->team_a} vs {$match->team_b} 🔥\n";
         $message .= "📅 {$date} à {$time}\n\n";
-        $message .= "👉 Qui va gagner selon toi dès la première mi-temps ?\n\n";
+        $message .= "👉  Quelle équipe mènera au score pendant la première mi-temps ?\n\n";
         $message .= "1️⃣ Victoire {$match->team_a}\n";
         $message .= "2️⃣ Victoire {$match->team_b}\n";
         $message .= "3️⃣ 🤝 Match nul\n\n";
