@@ -57,9 +57,9 @@
                     </svg>
                 </div>
             </div>
-            <p class="text-sm font-medium text-gray-600 mb-1">Pronostics</p>
-            <h3 class="text-3xl font-bold text-navy-900 mb-2">{{ number_format($pronosticsThisWeek) }}</h3>
-            <p class="text-sm text-gray-500">Cette semaine ({{ $participationRate }}% participation)</p>
+            <p class="text-sm font-medium text-gray-600 mb-1">Total Pronostics</p>
+            <h3 class="text-3xl font-bold text-navy-900 mb-2">{{ number_format($totalPronostics) }}</h3>
+            <p class="text-sm text-gray-500">{{ number_format($pronosticsThisWeek) }} cette semaine ({{ $participationRate }}% participation)</p>
         </div>
 
         <!-- Messages Envoyés -->
