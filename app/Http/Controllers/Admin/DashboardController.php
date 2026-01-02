@@ -193,7 +193,61 @@ class DashboardController extends Controller
             fputcsv($file, []);
 
             // ========================================
-            // SECTION 3: STATISTIQUES PAR MATCH
+            // SECTION 3: STATISTIQUES PAR BOISSON
+            // ========================================
+            fputcsv($file, ['=== STATISTIQUES PAR BOISSON ===']);
+            fputcsv($file, ['Boisson', 'Nombre de Clients', 'Pourcentage']);
+
+            $drinkStats = User::select('boisson_preferee', DB::raw('COUNT(*) as count'))
+                ->whereNotNull('boisson_preferee')
+                ->where('is_active', true)
+                ->groupBy('boisson_preferee')
+                ->orderByDesc('count')
+                ->get();
+
+            $totalUsersWithDrink = $drinkStats->sum('count');
+
+            foreach ($drinkStats as $drink) {
+                $percentage = $totalUsersWithDrink > 0
+                    ? round(($drink->count / $totalUsersWithDrink) * 100, 2)
+                    : 0;
+                fputcsv($file, [
+                    $drink->boisson_preferee,
+                    $drink->count,
+                    $percentage . '%'
+                ]);
+            }
+
+            // Utilisateurs sans boisson
+            $noFavoriteDrink = User::where('is_active', true)
+                ->whereNull('boisson_preferee')
+                ->count();
+
+            if ($noFavoriteDrink > 0) {
+                $percentageNoDrink = $totalUsers > 0
+                    ? round(($noFavoriteDrink / $totalUsers) * 100, 2)
+                    : 0;
+                fputcsv($file, [
+                    'Pas de boisson sélectionnée',
+                    $noFavoriteDrink,
+                    $percentageNoDrink . '%'
+                ]);
+            }
+
+            // Total
+            fputcsv($file, []);
+            fputcsv($file, [
+                'TOTAL',
+                $totalUsersWithDrink + $noFavoriteDrink,
+                '100%'
+            ]);
+
+            // Ligne vide
+            fputcsv($file, []);
+            fputcsv($file, []);
+
+            // ========================================
+            // SECTION 4: STATISTIQUES PAR MATCH
             // ========================================
             fputcsv($file, ['=== STATISTIQUES PAR MATCH ===']);
             fputcsv($file, [
@@ -250,7 +304,7 @@ class DashboardController extends Controller
             fputcsv($file, []);
 
             // ========================================
-            // SECTION 4: DÉTAILS DES PRONOSTICS PAR MATCH
+            // SECTION 5: DÉTAILS DES PRONOSTICS PAR MATCH
             // ========================================
             fputcsv($file, ['=== DÉTAILS DES PRONOSTICS PAR MATCH ===']);
 
@@ -308,7 +362,7 @@ class DashboardController extends Controller
             fputcsv($file, []);
 
             // ========================================
-            // SECTION 5: STATISTIQUES QUIZ
+            // SECTION 6: STATISTIQUES QUIZ
             // ========================================
             fputcsv($file, ['=== RÉPONSES AU QUIZ ===']);
             fputcsv($file, ['Réponse', 'Nombre de Joueurs']);
@@ -332,7 +386,7 @@ class DashboardController extends Controller
             fputcsv($file, []);
 
             // ========================================
-            // SECTION 6: INSCRIPTIONS PAR DATE (DÉTAILLÉ)
+            // SECTION 7: INSCRIPTIONS PAR DATE (DÉTAILLÉ)
             // ========================================
             fputcsv($file, ['=== INSCRIPTIONS PAR JOUR (30 DERNIERS JOURS) ===']);
             fputcsv($file, ['Date', 'Nombre d\'Inscrits']);
