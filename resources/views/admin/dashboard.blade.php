@@ -77,6 +77,30 @@
         </div>
     </div>
 
+    <!-- Export Button -->
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center">
+                <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mr-3">
+                    <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold text-navy-900">Export des Statistiques Détaillées</h3>
+                    <p class="text-sm text-gray-600 mt-1">Téléchargez toutes les statistiques en format CSV</p>
+                </div>
+            </div>
+            <a href="{{ route('admin.dashboard.export-stats') }}"
+               class="inline-flex items-center bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors shadow-sm font-semibold">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                </svg>
+                Exporter les Stats
+            </a>
+        </div>
+    </div>
+
     <!-- Graphiques - Ligne 1 -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <!-- Graphique Inscriptions (7 derniers jours) -->
